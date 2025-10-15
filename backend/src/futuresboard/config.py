@@ -95,9 +95,9 @@ class Config(BaseModel):
 
     @validator("AUTO_SCRAPE_INTERVAL")
     @classmethod
-    def _validate_projections(cls, value):
-        if value < 60:
-            raise ValueError("The lower allowed value is 60")
+    def _validate_interval(cls, value):
+        if value < 10:  # Lower for Phase 1 WS (<30s); CCXT rate-safe
+            raise ValueError("The lower allowed value is 10")
         if value > 3600:
             raise ValueError("The upper allowed value is 3600")
         return value
@@ -133,9 +133,14 @@ class Config(BaseModel):
         config_dict["CONFIG_DIR"] = config_dir
     
         # .env Overrides: Pull after JSON, before parse (env wins)
-        config_dict["EXCHANGE"] = os.getenv("EXCHANGE", config_dict.get("EXCHANGE", "binance")).upper()
+        # .env Overrides: Parse to types before parse_obj (env wins over JSON)
+        env_exchange = os.getenv("EXCHANGE", config_dict.get("EXCHANGE", "binance")).upper()
+        config_dict["EXCHANGE"] = Exchanges[env_exchange]  # Coerce to enum early (BINANCE → Exchanges.BINANCE)
+
         config_dict["API_KEY"] = os.getenv("API_KEY", config_dict.get("API_KEY", ""))
         config_dict["API_SECRET"] = os.getenv("API_SECRET", config_dict.get("API_SECRET", ""))
-        config_dict["AUTO_SCRAPE_INTERVAL"] = int(os.getenv("INTERVAL", config_dict.get("AUTO_SCRAPE_INTERVAL", 300)))  # INTERVAL -> AUTO_SCRAPE_INTERVAL
+        config_dict["AUTO_SCRAPE_INTERVAL"] = int(os.getenv("INTERVAL", str(config_dict.get("AUTO_SCRAPE_INTERVAL", 300))))  # INTERVAL str→int
+
+        config_dict["TEST_MODE"] = os.getenv("TEST_MODE", "False").lower() == "true"  # Bool coerce
     
         return cls.parse_obj(config_dict)
