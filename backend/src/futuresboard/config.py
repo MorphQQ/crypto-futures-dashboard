@@ -67,7 +67,7 @@ class Config(BaseModel):
     PORT: Optional[int] = Field(5000, ge=1, le=65535)
     API_KEY: str
     API_SECRET: str
-
+    SYMBOLS: List[str] = Field(default_factory=lambda: ["BTCUSDT", "ETHUSDT", "SOLUSDT"])  # New: Uppercase, default list (never None)
     CUSTOM: Optional[Custom] = Custom()
 
     @validator("DATABASE", always=True)
@@ -132,15 +132,20 @@ class Config(BaseModel):
             config_dict = {}
         config_dict["CONFIG_DIR"] = config_dir
     
-        # .env Overrides: Pull after JSON, before parse (env wins)
-        # .env Overrides: Parse to types before parse_obj (env wins over JSON)
+        # .env Overrides (keep existing)
         env_exchange = os.getenv("EXCHANGE", config_dict.get("EXCHANGE", "binance")).upper()
-        config_dict["EXCHANGE"] = Exchanges[env_exchange]  # Coerce to enum early (BINANCE → Exchanges.BINANCE)
+        config_dict["EXCHANGE"] = Exchanges[env_exchange]
 
         config_dict["API_KEY"] = os.getenv("API_KEY", config_dict.get("API_KEY", ""))
         config_dict["API_SECRET"] = os.getenv("API_SECRET", config_dict.get("API_SECRET", ""))
-        config_dict["AUTO_SCRAPE_INTERVAL"] = int(os.getenv("INTERVAL", str(config_dict.get("AUTO_SCRAPE_INTERVAL", 300))))  # INTERVAL str→int
+        config_dict["AUTO_SCRAPE_INTERVAL"] = int(os.getenv("INTERVAL", str(config_dict.get("AUTO_SCRAPE_INTERVAL", 300))))
 
-        config_dict["TEST_MODE"] = os.getenv("TEST_MODE", "False").lower() == "true"  # Bool coerce
-    
+        config_dict["TEST_MODE"] = os.getenv("TEST_MODE", "False").lower() == "true"
+        
+        # New: SYMBOLS from .env/JSON (comma-split if env str)
+        env_symbols = os.getenv("SYMBOLS", "")
+        if env_symbols:
+            config_dict["SYMBOLS"] = [s.strip() for s in env_symbols.split(",") if s.strip()]
+        elif "SYMBOLS" not in config_dict:
+            config_dict["SYMBOLS"] = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]  # Ensure list
         return cls.parse_obj(config_dict)

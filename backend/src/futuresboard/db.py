@@ -1,32 +1,69 @@
 from __future__ import annotations
 
 import sqlite3
+import os
+from datetime import datetime
 
-from flask import current_app
-from flask import g
+from flask import current_app, g
+from sqlalchemy import Column, Integer, String, DateTime, Float, create_engine
+from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.ext.declarative import declarative_base  # v1.4 compatible
+from .config import Config
 
+import pathlib  # For Path coerce
 
+Base = declarative_base()  # Exported for Alembic env.py
+
+# ORM Session (try/finally safety for roadmap)
+cfg = Config.from_config_dir(pathlib.Path(os.path.dirname(os.path.dirname(__file__))))  # backend root (str → Path)
+engine = create_engine(f'sqlite:///{cfg.DATABASE}')
+SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
+Session = SessionLocal
+
+# Metric model (ORM for upserts/merge, pre-calc deltas)
+class Metric(Base):
+    __tablename__ = 'metrics'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    symbol = Column(String, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    price = Column(Float, nullable=True)
+    price_change_24h_pct = Column(Float, nullable=True)
+    volume_24h = Column(Float, nullable=True)
+    volume_change_24h_pct = Column(Float, nullable=True)
+    market_cap = Column(Float, nullable=True)
+    oi_usd = Column(Float, nullable=True)  # Existing
+    oi_abs_usd = Column(Float, nullable=True)  # New: USD-normalized OI
+    oi_change_24h_pct = Column(Float, nullable=True)
+    oi_change_5m_pct = Column(Float, nullable=True)
+    oi_change_15m_pct = Column(Float, nullable=True)
+    oi_change_30m_pct = Column(Float, nullable=True)
+    oi_change_1h_pct = Column(Float, nullable=True)
+    oi_delta_pct = Column(Float, nullable=True)  # New: Rolling % change (pre-calc)
+    price_change_5m_pct = Column(Float, nullable=True)
+    price_change_15m_pct = Column(Float, nullable=True)
+    price_change_30m_pct = Column(Float, nullable=True)
+    price_change_1h_pct = Column(Float, nullable=True)
+    global_ls_5m = Column(Float, nullable=True)  # Existing
+    global_ls_15m = Column(Float, nullable=True)
+    global_ls_30m = Column(Float, nullable=True)
+    global_ls_1h = Column(Float, nullable=True)
+    long_account_pct = Column(Float, nullable=True)
+    short_account_pct = Column(Float, nullable=True)
+    top_ls = Column(Float, nullable=True)  # Existing
+    top_ls_accounts = Column(Float, nullable=True)  # New: Top L/S accounts
+    top_ls_positions = Column(Float, nullable=True)  # Existing
+
+# Raw SQL fallback (your existing)
 def get_db():
-    """Connect to the application's configured database. The connection
-    is unique for each request and will be reused if this is called
-    again.
-    """
     if "db" not in g:
         g.db = sqlite3.connect(current_app.config["DATABASE"], detect_types=sqlite3.PARSE_DECLTYPES)
         g.db.row_factory = sqlite3.Row
-
     return g.db
 
-
 def close_db(e=None):
-    """If this request connected to the database, close the
-    connection.
-    """
     db = g.pop("db", None)
-
     if db is not None:
         db.close()
-
 
 def query(query, args=(), one=False):
     cur = get_db().execute(query, args)
@@ -34,19 +71,15 @@ def query(query, args=(), one=False):
     cur.close()
     return (rv[0] if rv else None) if one else rv
 
-
 def init_app(app):
-    """Register database functions with the Flask app. This is called by
-    the application factory.
-    """
     app.teardown_appcontext(close_db)
-    with app.app_context():  # Ensure table exists on startup
+    with app.app_context():
         create_metrics_table()
-
+        Base.metadata.create_all(bind=engine)  # ORM tables (safe if exists)
 
 def create_metrics_table():
-    """Create metrics table if it doesn't exist, or ALTER for new columns."""
-    # Create if missing
+    """Create metrics table if missing, ALTER for new cols (dev-safe)."""
+    # Raw SQL create (your existing, with UNIQUE for upsert; no # comments)
     query("""
         CREATE TABLE IF NOT EXISTS metrics (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,11 +90,13 @@ def create_metrics_table():
             volume_change_24h_pct REAL,
             market_cap REAL,
             oi_usd REAL,
+            oi_abs_usd REAL,
             oi_change_24h_pct REAL,
             oi_change_5m_pct REAL,
             oi_change_15m_pct REAL,
             oi_change_30m_pct REAL,
             oi_change_1h_pct REAL,
+            oi_delta_pct REAL,
             price_change_5m_pct REAL,
             price_change_15m_pct REAL,
             price_change_30m_pct REAL,
@@ -73,13 +108,14 @@ def create_metrics_table():
             long_account_pct REAL,
             short_account_pct REAL,
             top_ls REAL,
+            top_ls_accounts REAL,
             top_ls_positions REAL,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(symbol, timestamp) ON CONFLICT REPLACE
         )
     """)
     
-    # ALTER for new columns if table exists but missing (dev-safe)
+    # ALTER for new columns (your existing logic, added missing; no #)
     db = get_db()
     cur = db.cursor()
     new_columns = [
@@ -87,116 +123,101 @@ def create_metrics_table():
         'oi_change_24h_pct', 'oi_change_5m_pct', 'oi_change_15m_pct', 'oi_change_30m_pct', 'oi_change_1h_pct',
         'price_change_5m_pct', 'price_change_15m_pct', 'price_change_30m_pct', 'price_change_1h_pct',
         'global_ls_5m', 'global_ls_15m', 'global_ls_30m', 'global_ls_1h',
-        'long_account_pct', 'short_account_pct', 'top_ls_positions'
+        'long_account_pct', 'short_account_pct', 'top_ls', 'top_ls_positions',
+        'oi_abs_usd', 'oi_delta_pct', 'top_ls_accounts'
     ]
     for col in new_columns:
         try:
             cur.execute(f"ALTER TABLE metrics ADD COLUMN {col} REAL")
             print(f"Added column {col} to metrics table")
         except sqlite3.OperationalError:
-            # Column already exists
-            pass
+            pass  # Already exists
     db.commit()
     cur.close()
 
-
 def save_metrics(metrics):
-    """Batch save metrics list to DB (returns inserted count)."""
+    """Batch save metrics to DB using ORM merge (upserts + pre-calc deltas; fallback raw)."""
     if not metrics:
         return 0
-    db = get_db()
+    session = Session()
     try:
-        cur = db.cursor()
-        sql = """
-            INSERT OR REPLACE INTO metrics 
-            (symbol, price, price_change_24h_pct, volume_24h, volume_change_24h_pct, market_cap,
-             oi_usd, oi_change_24h_pct, oi_change_5m_pct, oi_change_15m_pct, oi_change_30m_pct, oi_change_1h_pct,
-             price_change_5m_pct, price_change_15m_pct, price_change_30m_pct, price_change_1h_pct,
-             global_ls_5m, global_ls_15m, global_ls_30m, global_ls_1h,
-             long_account_pct, short_account_pct, top_ls, top_ls_positions)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """
-        values = []
+        saved_count = 0
         for m in metrics:
             if 'error' in m:
                 continue
-            # Safe parse function
+            # Safe parse (your existing)
             def safe_float(key, default=None):
                 val = m.get(key, default)
                 if val is None or val == 'N/A':
                     return None
                 try:
-                    # Clean $, ,, %
                     cleaned = str(val).replace('$', '').replace(',', '').replace('%', '')
                     return float(cleaned)
                 except (ValueError, TypeError):
                     print(f"Parse error for {key}: {val}")
                     return None
             
-            price = safe_float('Price')
-            price_change_24h = safe_float('Price_Change_24h_Pct')
-            volume_24h = safe_float('Volume_24h')
-            volume_change_24h = safe_float('Volume_Change_24h_Pct')
-            market_cap = safe_float('Market_Cap')
-            oi_usd = safe_float('OI_USD')
-            oi_change_24h = safe_float('OI_Change_24h_Pct')
-            oi_change_5m = safe_float('OI_Change_5m_Pct')
-            oi_change_15m = safe_float('OI_Change_15m_Pct')
-            oi_change_30m = safe_float('OI_Change_30m_Pct')
-            oi_change_1h = safe_float('OI_Change_1h_Pct')
-            price_change_5m = safe_float('Price_Change_5m_Pct')
-            price_change_15m = safe_float('Price_Change_15m_Pct')
-            price_change_30m = safe_float('Price_Change_30m_Pct')
-            price_change_1h = safe_float('Price_Change_1h_Pct')
-            global_ls_5m = safe_float('Global_LS_5m')
-            global_ls_15m = safe_float('Global_LS_15m')
-            global_ls_30m = safe_float('Global_LS_30m')
-            global_ls_1h = safe_float('Global_LS_1h')
-            long_account = safe_float('Long_Account_Pct')
-            short_account = safe_float('Short_Account_Pct')
-            top_ls = safe_float('Top_LS')
-            top_ls_positions = safe_float('Top_LS_Positions')
-            values.append((
-                m['symbol'],
-                price,
-                price_change_24h,
-                volume_24h,
-                volume_change_24h,
-                market_cap,
-                oi_usd,
-                oi_change_24h,
-                oi_change_5m,
-                oi_change_15m,
-                oi_change_30m,
-                oi_change_1h,
-                price_change_5m,
-                price_change_15m,
-                price_change_30m,
-                price_change_1h,
-                global_ls_5m,
-                global_ls_15m,
-                global_ls_30m,
-                global_ls_1h,
-                long_account,
-                short_account,
-                top_ls,
-                top_ls_positions
-            ))
-        if values:
-            cur.executemany(sql, values)
-            db.commit()
-            print(f"Saved {len(values)} metrics to DB")  # Temp log
-            return len(values)
+            # Build Metric instance
+            metric = Metric(
+                symbol = m['symbol'],
+                price = safe_float('Price'),
+                price_change_24h_pct = safe_float('Price_Change_24h_Pct'),
+                volume_24h = safe_float('Volume_24h'),
+                volume_change_24h_pct = safe_float('Volume_Change_24h_Pct'),
+                market_cap = safe_float('Market_Cap'),
+                oi_usd = safe_float('OI_USD'),
+                oi_abs_usd = safe_float('oi_abs_usd', safe_float('OI_USD')),  # Normalize if missing
+                oi_change_24h_pct = safe_float('OI_Change_24h_Pct'),
+                oi_change_5m_pct = safe_float('OI_Change_5m_Pct'),
+                oi_change_15m_pct = safe_float('OI_Change_15m_Pct'),
+                oi_change_30m_pct = safe_float('OI_Change_30m_Pct'),
+                oi_change_1h_pct = safe_float('OI_Change_1h_Pct'),
+                price_change_5m_pct = safe_float('Price_Change_5m_Pct'),
+                price_change_15m_pct = safe_float('Price_Change_15m_Pct'),
+                price_change_30m_pct = safe_float('Price_Change_30m_Pct'),
+                price_change_1h_pct = safe_float('Price_Change_1h_Pct'),
+                global_ls_5m = safe_float('Global_LS_5m'),
+                global_ls_15m = safe_float('Global_LS_15m'),
+                global_ls_30m = safe_float('Global_LS_30m'),
+                global_ls_1h = safe_float('Global_LS_1h'),
+                long_account_pct = safe_float('Long_Account_Pct'),
+                short_account_pct = safe_float('Short_Account_Pct'),
+                top_ls = safe_float('Top_LS'),
+                top_ls_accounts = safe_float('Top_LS_Accounts', safe_float('Top_LS')),  # Fallback
+                top_ls_positions = safe_float('Top_LS_Positions')
+            )
+            
+            # Pre-calc oi_delta_pct (roadmap: rolling % from prev)
+            prev = session.query(Metric).filter(Metric.symbol == m['symbol']).order_by(Metric.timestamp.desc()).first()
+            if prev and prev.oi_abs_usd and metric.oi_abs_usd:
+                metric.oi_delta_pct = ((metric.oi_abs_usd - prev.oi_abs_usd) / prev.oi_abs_usd * 100)
+            else:
+                metric.oi_delta_pct = 0.0
+            
+            session.merge(metric)  # Upsert (roadmap)
+            saved_count += 1
+        session.commit()
+        print(f"Saved {saved_count} metrics to DB")  # Temp log
+        return saved_count
+    except Exception as e:
+        print(f"DB save error: {e}")
+        session.rollback()
         return 0
-    except sqlite3.Error as e:
-        current_app.logger.error(f"DB save error: {e}")  # Use logger if app context
-        db.rollback()
-        return 0
+    finally:
+        session.close()  # Safety
 
 def get_latest_metrics(limit=50):
-    """Query recent metrics for frontend/charts (e.g., last N rows)."""
-    return query("SELECT * FROM metrics ORDER BY timestamp DESC LIMIT ?", (limit,), one=False)
+    """Query recent metrics (ORM for frontend/charts)."""
+    session = Session()
+    try:
+        return session.query(Metric).order_by(Metric.timestamp.desc()).limit(limit).all()
+    finally:
+        session.close()
 
 def get_metrics_by_symbol(symbol, limit=24):
-    """Latest for one symbol (e.g., hourly history)."""
-    return query("SELECT * FROM metrics WHERE symbol = ? ORDER BY timestamp DESC LIMIT ?", (symbol, limit), one=False)
+    """Latest for one symbol (ORM)."""
+    session = Session()
+    try:
+        return session.query(Metric).filter(Metric.symbol == symbol).order_by(Metric.timestamp.desc()).limit(limit).all()
+    finally:
+        session.close()

@@ -9,11 +9,19 @@ from collections import OrderedDict
 from datetime import datetime, timedelta
 from sqlite3 import Error
 from urllib.parse import urlencode
-import pathlib  # Added: For Path.cwd() in CLI temp app
+import pathlib
+import os  # Added for os.path.dirname (Pylance fix)
 import requests  # type: ignore
-from flask import Flask
-from flask import current_app, Flask
+from flask import Flask, current_app
+import json
+import asyncio
+from queue import SimpleQueue  # For WS decoupling
+from flask_socketio import SocketIO  # For WS emit (import from app.py if registered)
+from .app import socketio  # Assume app.py has socketio = SocketIO(app, ...)
 
+from .config import Config  # Standalone load
+
+q = SimpleQueue()  # Global queue for metrics emit (Pylance fix: early define)
 
 class HTTPRequestError(Exception):
     def __init__(self, url, code, msg=None):
@@ -40,22 +48,32 @@ def _auto_scrape(app):
         while True:
             app.logger.info("Auto scrape routines starting")
             scrape(app=app)
-            app.logger.info(
-                f"Auto scrape routines terminated. Sleeping {interval} seconds...",
-            )
+            # Hook: Queue metrics post-scrape (Phase 1 WS <30s)
+            with app.app_context():
+                from .metrics import get_all_metrics
+                from .db import save_metrics
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                metrics = loop.run_until_complete(get_all_metrics())
+                save_metrics(metrics)
+                q.put(metrics)  # Queue for emit thread
+                loop.close()
+            app.logger.info(f"Auto scrape routines terminated. Sleeping {interval} seconds...")
             time.sleep(interval)
 
 
 def hashing(query_string, exchange="binance", timestamp=None):
+    cfg_path = pathlib.Path(os.path.dirname(__file__)).parent.parent
+    cfg = Config.from_config_dir(cfg_path)
     if exchange == "bybit":
-        query_string = f"{timestamp}{current_app.config['API_KEY']}5000" + query_string
+        query_string = f"{timestamp}{cfg.API_KEY}5000" + query_string
         return hmac.new(
-            bytes(current_app.config["API_SECRET"].encode("utf-8")),
+            bytes(cfg.API_SECRET.encode("utf-8")),
             query_string.encode("utf-8"),
             hashlib.sha256,
         ).hexdigest()
     return hmac.new(
-        bytes(current_app.config["API_SECRET"].encode("utf-8")),
+        bytes(cfg.API_SECRET.encode("utf-8")),
         query_string.encode("utf-8"),
         hashlib.sha256,
     ).hexdigest()
@@ -65,13 +83,18 @@ def get_timestamp():
     return int(time.time() * 1000)
 
 
-def dispatch_request(http_method, signature=None, timestamp=None):
+def dispatch_request(http_method, signature=None, timestamp=None, app=None):  # Add app=None for standalone
     session = requests.Session()
+    # Standalone config (no current_app)
+    cfg_path = pathlib.Path(os.path.dirname(__file__)).parent.parent
+    cfg = Config.from_config_dir(cfg_path)
+    api_key = cfg.API_KEY
+    
     session.headers.update(
         {
             "Content-Type": "application/json;charset=utf-8",
-            "X-MBX-APIKEY": current_app.config["API_KEY"],
-            "X-BAPI-API-KEY": current_app.config["API_KEY"],
+            "X-MBX-APIKEY": api_key,
+            "X-BAPI-API-KEY": api_key,
             "X-BAPI-SIGN": f"{signature}",
             "X-BAPI-SIGN-TYPE": "2",
             "X-BAPI-TIMESTAMP": f"{timestamp}",
@@ -88,7 +111,9 @@ def dispatch_request(http_method, signature=None, timestamp=None):
 
 
 # used for sending request requires the signature
-def send_signed_request(http_method, url_path, payload={}, exchange="binance"):
+def send_signed_request(http_method, url_path, payload={}, exchange="binance", app=None):
+    cfg_path = pathlib.Path(os.path.dirname(__file__)).parent.parent
+    cfg = Config.from_config_dir(cfg_path)
     if exchange == "binance":
         payload["timestamp"] = get_timestamp()
     query_string = urlencode(OrderedDict(sorted(payload.items())))
@@ -96,7 +121,7 @@ def send_signed_request(http_method, url_path, payload={}, exchange="binance"):
         "%27", "%22"
     )  # replace single quote to double quote
 
-    url = f"{current_app.config['API_BASE_URL']}{url_path}?{query_string}"
+    url = f"{cfg.API_BASE_URL}{url_path}?{query_string}"
     if exchange == "binance":
         url += f"&signature={hashing(query_string, exchange)}"
 
@@ -107,6 +132,7 @@ def send_signed_request(http_method, url_path, payload={}, exchange="binance"):
             http_method,
             hashing(query_string=query_string, exchange=exchange, timestamp=timestamp),
             timestamp=timestamp,
+            app=app
         )(**params)
         headers = response.headers
         try:
@@ -128,13 +154,17 @@ def send_signed_request(http_method, url_path, payload={}, exchange="binance"):
 
 
 # used for sending public data request
-def send_public_request(url_path, payload={}):
+def send_public_request(url_path, payload={}, app=None):  # Add app=None
     query_string = urlencode(payload, True)
-    url = current_app.config["API_BASE_URL"] + url_path
+    # Standalone config (no current_app)
+    cfg_path = pathlib.Path(os.path.dirname(__file__)).parent.parent
+    cfg = Config.from_config_dir(cfg_path)
+    api_base_url = cfg.API_BASE_URL
+    url = api_base_url + url_path
     if query_string:
         url = url + "?" + query_string
     try:
-        response = dispatch_request("GET")(url=url)
+        response = dispatch_request("GET", app=app)(url=url)  # Pass app
         headers = response.headers
         try:
             json_response = response.json()
@@ -337,78 +367,52 @@ def scrape(app=None):
         else:
             app.logger.error(f"Scrape error: {e}")
     
-    # Lazy metrics hook post-scrape (breaks cycle)
-    if app is None:
-        # Temp app for CLI (manual init to set DATABASE before db.init_app)
-        from futuresboard.app import add_metrics_route  # For route
-        from futuresboard import db  # For init_app
-        import json
-        config_path = 'config/config.json'  # Direct to your file
-        temp_app = Flask(__name__)  # Create app
-        with open(config_path, 'r') as f:
-            config_data = json.load(f)
-        temp_app.config.from_mapping(**config_data)  # Load json
-        temp_app.config['DATABASE'] = 'config/futures.db'  # Explicit default
-        # Defaults (symbols, etc.)
-        if 'symbols' not in temp_app.config:
-            temp_app.config['symbols'] = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT']
-        if 'API_BASE_URL' not in temp_app.config:
-            temp_app.config['API_BASE_URL'] = 'https://fapi.binance.com'
-        temp_app.config['sandbox'] = temp_app.config.get('TEST_MODE', False)
-        # Init DB/routes (safe now with DATABASE set)
-        db.init_app(temp_app)
-        add_metrics_route(temp_app)
-        with temp_app.app_context():
-            try:
-                from .metrics import get_all_metrics
-                from .db import save_metrics
-                import asyncio
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                metrics = loop.run_until_complete(get_all_metrics())
-                saved_count = save_metrics(metrics)
-                loop.close()
-                print(f"Saved {saved_count} metrics (CLI mode)")
-            except ImportError as ie:
-                print(f"Metrics import failed (CLI): {ie}")
-            except Exception as m_e:
-                print(f"Metrics error (CLI): {m_e}")
-        return
+    # Lazy metrics hook post-scrape (standalone, no temp app)
     try:
         from .metrics import get_all_metrics
         from .db import save_metrics
-        import asyncio
-        with app.app_context():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            metrics = loop.run_until_complete(get_all_metrics())
-            saved_count = save_metrics(metrics)
-            loop.close()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        metrics = loop.run_until_complete(get_all_metrics())
+        saved_count = save_metrics(metrics)
+        loop.close()
+        if app is None:
+            print(f"Saved {saved_count} metrics (CLI mode)")
+        else:
             app.logger.info(f"Saved {saved_count} metrics")
+        q.put(metrics)  # Queue for WS emit (if app)
     except ImportError as ie:
-        app.logger.warning(f"Metrics import failed: {ie}")
+        if app is None:
+            print(f"Metrics import failed (CLI): {ie}")
+        else:
+            app.logger.warning(f"Metrics import failed: {ie}")
     except Exception as m_e:
-        app.logger.error(f"Metrics error: {m_e}")
+        if app is None:
+            print(f"Metrics error (CLI): {m_e}")
+        else:
+            app.logger.error(f"Metrics error: {m_e}")
 
 
 # flake8: noqa: C901
 def _scrape(app=None):
     start = time.time()
-    db_setup(current_app.config["DATABASE"])
+    cfg_path = pathlib.Path(os.path.dirname(__file__)).parent.parent
+    cfg = Config.from_config_dir(cfg_path)
+    db_setup(cfg.DATABASE)  # Standalone
 
     up_to_date = False
     weightused = 0
     processed, updated_positions, new_positions, updated_orders, sleeps = 0, 0, 0, 0, 0
 
-    exchange_str = str(current_app.config["EXCHANGE"]).lower()
+    exchange_str = str(cfg.EXCHANGE).lower()
     if 'binance' in exchange_str:
         if weightused < 800:
             responseHeader, responseJSON = send_signed_request(
-                "GET", "/fapi/v1/openOrders"
+                "GET", "/fapi/v1/openOrders", app=app
             )
             weightused = int(responseHeader["X-MBX-USED-WEIGHT-1M"])
 
-            with create_connection(current_app.config["DATABASE"]) as conn:
+            with create_connection(cfg.DATABASE) as conn:
                 delete_all_orders(conn)
                 for order in responseJSON:
                     updated_orders += 1
@@ -425,7 +429,7 @@ def _scrape(app=None):
                     create_orders(conn, row)
                 conn.commit()
 
-        responseHeader, responseJSON = send_signed_request("GET", "/fapi/v2/account")
+        responseHeader, responseJSON = send_signed_request("GET", "/fapi/v2/account", app=app)
         weightused = int(responseHeader["X-MBX-USED-WEIGHT-1M"])
 
         overweight = False
@@ -435,7 +439,7 @@ def _scrape(app=None):
             overweight = True
 
         if not overweight:
-            with create_connection(current_app.config["DATABASE"]) as conn:
+            with create_connection(cfg.DATABASE) as conn:
                 totals_row = (
                     float(responseJSON["totalWalletBalance"]),
                     float(responseJSON["totalUnrealizedProfit"]),
@@ -471,13 +475,15 @@ def _scrape(app=None):
 
         while not up_to_date:
             if weightused > 800:
-                print(
-                    f"Weight used: {weightused}/800\nProcessed: {processed}\nSleep: 1 minute"
-                )
+                message = f"Weight used: {weightused}/800\nProcessed: {processed}\nSleep: 1 minute"
+                if app is None:
+                    print(message)
+                else:
+                    app.logger.info(message)
                 sleeps += 1
                 time.sleep(60)
 
-            with create_connection(current_app.config["DATABASE"]) as conn:
+            with create_connection(cfg.DATABASE) as conn:
                 startTime = select_latest_income(conn)
                 if startTime is None:
                     startTime = int(
@@ -490,7 +496,7 @@ def _scrape(app=None):
                 params = {"startTime": startTime + 1, "limit": 1000}
 
                 responseHeader, responseJSON = send_signed_request(
-                    http_method="GET", url_path="/fapi/v1/income", payload=params
+                    http_method="GET", url_path="/fapi/v1/income", payload=params, app=app
                 )
                 weightused = int(responseHeader["X-MBX-USED-WEIGHT-1M"])
 
@@ -529,22 +535,33 @@ def _scrape(app=None):
             url_path="/v5/position/list",
             payload=params,
             exchange="bybit",
+            app=app,
         )
         if "rate_limit_status" in responseJSON:
             weightused = int(responseJSON["rate_limit_status"])
 
-        with create_connection(current_app.config["DATABASE"]) as conn:
-            current_app.logger.info("Deleting orders and positions from db")  # Fixed: current_app
+        with create_connection(cfg.DATABASE) as conn:
+            message = "Deleting orders and positions from db"
+            if app is None:
+                print(message)
+            else:
+                app.logger.info(message)
             delete_all_orders(conn)
             delete_all_positions(conn)
-            current_app.logger.info("Loading orders and positions from exchange")  # Fixed
+            message = "Loading orders and positions from exchange"
+            if app is None:
+                print(message)
+            else:
+                app.logger.info(message)
             if "result" in responseJSON:
                 if "list" in responseJSON["result"]:
                     for position in responseJSON["result"]["list"]:
                         if weightused > 50:
-                            print(
-                                f"Weight used: {weightused}/{120-weightused}\nProcessed: {updated_positions + new_positions + updated_orders}\nSleep: 1 minute"
-                            )
+                            message = f"Weight used: {weightused}/{120-weightused}\nProcessed: {updated_positions + new_positions + updated_orders}\nSleep: 1 minute"
+                            if app is None:
+                                print(message)
+                            else:
+                                app.logger.info(message)
                             sleeps += 1
                             time.sleep(60)
                             weightused = 0
@@ -577,6 +594,7 @@ def _scrape(app=None):
                                 url_path="/v5/order/realtime",
                                 payload=params,
                                 exchange="bybit",
+                                app=app,
                             )
                             if "rate_limit_status" in responseJSON:
                                 weightused = int(responseJSON["rate_limit_status"])
@@ -602,19 +620,29 @@ def _scrape(app=None):
                                         )
                                         create_orders(conn, row)
                                 else:
-                                    current_app.logger.warning(  # Fixed
-                                        "Orders: 'list' not in responseJSON['result']"
-                                    )
+                                    message = "Orders: 'list' not in responseJSON['result']"
+                                    if app is None:
+                                        print(message)
+                                    else:
+                                        app.logger.warning(message)
                             else:
-                                current_app.logger.warning(  # Fixed
-                                    "Orders: 'result' not in responseJSON"
-                                )
+                                message = "Orders: 'result' not in responseJSON"
+                                if app is None:
+                                    print(message)
+                                else:
+                                    app.logger.warning(message)
                 else:
-                    current_app.logger.warning(  # Fixed
-                        "Positions: 'list' not in responseJSON['result']"
-                    )
+                    message = "Positions: 'list' not in responseJSON['result']"
+                    if app is None:
+                        print(message)
+                    else:
+                        app.logger.warning(message)
             else:
-                current_app.logger.warning("Positions: 'result' not in responseJSON")
+                message = "Positions: 'result' not in responseJSON"
+                if app is None:
+                    print(message)
+                else:
+                    app.logger.warning(message)
 
             params = {"coin": "USDT", "accountType": "CONTRACT"}
             responseHeader, responseJSON = send_signed_request(
@@ -622,8 +650,13 @@ def _scrape(app=None):
                 url_path="/v5/account/wallet-balance",
                 payload=params,
                 exchange="bybit",
+                app=app,
             )
-            current_app.logger.info("Updating wallet balance from exchange")  # Fixed
+            message = "Updating wallet balance from exchange"
+            if app is None:
+                print(message)
+            else:
+                app.logger.info(message)
             if "result" in responseJSON:
                 if "list" in responseJSON["result"]:
                     if (
@@ -667,12 +700,24 @@ def _scrape(app=None):
 
                     conn.commit()
                 else:
-                    current_app.logger.warning("Wallet: 'list' not in responseJSON['result']")  # Fixed
+                    message = "Wallet: 'list' not in responseJSON['result']"
+                    if app is None:
+                        print(message)
+                    else:
+                        app.logger.warning(message)
             else:
-                current_app.logger.warning("Wallet: 'result' not in responseJSON")  # Fixed
+                message = "Wallet: 'result' not in responseJSON"
+                if app is None:
+                    print(message)
+                else:
+                    app.logger.warning(message)
 
         all_symbols = sorted(all_symbols)
-        current_app.logger.info("Updating closed PnL from exchange")  # Fixed
+        message = "Updating closed PnL from exchange"
+        if app is None:
+            print(message)
+        else:
+            app.logger.info(message)
         for symbol in all_symbols:
             trades = {}
             params = {
@@ -680,7 +725,7 @@ def _scrape(app=None):
                 "category": "linear",
                 "limit": 100,
             }
-            with create_connection(current_app.config["DATABASE"]) as conn:
+            with create_connection(cfg.DATABASE) as conn:
                 startTime = select_latest_income_symbol(conn, symbol)
                 two_years_ago = datetime.now() - timedelta(days=729)
                 two_years_ago_timestamp = int(two_years_ago.timestamp() * 1000)
@@ -697,9 +742,11 @@ def _scrape(app=None):
                 params["startTime"] = startTime
 
             if weightused > 50:
-                print(
-                    f"Weight used: {weightused}/100\nProcessed: {processed}\nSleep: 1 minute"
-                )
+                message = f"Weight used: {weightused}/100\nProcessed: {processed}\nSleep: 1 minute"
+                if app is None:
+                    print(message)
+                else:
+                    app.logger.info(message)
                 sleeps += 1
                 time.sleep(60)
                 weightused = 0
@@ -709,6 +756,7 @@ def _scrape(app=None):
                 url_path="/v5/position/closed-pnl",
                 payload=params,
                 exchange="bybit",
+                app=app,
             )
 
             if "rate_limit_status" in responseJSON:
@@ -729,25 +777,37 @@ def _scrape(app=None):
                                 ]
 
                         else:
-                            current_app.logger.warning(  # Fixed
-                                "Closed PNL: responseJSON['result']['list'] is None"
-                            )
+                            message = "Closed PNL: responseJSON['result']['list'] is None"
+                            if app is None:
+                                print(message)
+                            else:
+                                app.logger.warning(message)
                             break
                     else:
-                        current_app.logger.warning(  # Fixed
-                            "Closed PNL: 'data' not found in responseJSON['result']['list']"
-                        )
+                        message = "Closed PNL: 'data' not found in responseJSON['result']['list']"
+                        if app is None:
+                            print(message)
+                        else:
+                            app.logger.warning(message)
                         break
                 else:
-                    current_app.logger.warning("Closed PNL: 'result' is None")  # Fixed
+                    message = "Closed PNL: 'result' is None"
+                    if app is None:
+                        print(message)
+                    else:
+                        app.logger.warning(message)
                     break
             else:
-                current_app.logger.warning("Closed PNL: 'result' not found in responseJSON")  # Fixed
+                message = "Closed PNL: 'result' not found in responseJSON"
+                if app is None:
+                    print(message)
+                else:
+                    app.logger.warning(message)
                 break
 
             if len(trades) > 0:
                 trades = OrderedDict(sorted(trades.items()))
-                with create_connection(current_app.config["DATABASE"]) as conn:
+                with create_connection(cfg.DATABASE) as conn:
                     for trade in trades:
                         income_row = (
                             trades[trade][0],
@@ -764,16 +824,24 @@ def _scrape(app=None):
                         processed += 1
                     conn.commit()
     else:
-        current_app.logger.info(
-            f"Exchange: {current_app.config['EXCHANGE']} is not currently supported"
-        )
+        message = f"Exchange: {cfg.EXCHANGE} is not currently supported"
+        if app is None:
+            print(message)
+        else:
+            app.logger.info(message)
 
     elapsed = time.time() - start
-    if app is not None:
-        current_app.logger.info(
-            f"Orders updated: {updated_orders}; Positions updated: {updated_positions} (new: {new_positions}); Trades processed: {processed}; Time elapsed: {timedelta(seconds=elapsed)}; Sleeps: {sleeps}",
-        )
+    message = f"Orders updated: {updated_orders}; Positions updated: {updated_positions} (new: {new_positions}); Trades processed: {processed}; Time elapsed: {timedelta(seconds=elapsed)}; Sleeps: {sleeps}"
+    if app is None:
+        print(message)
     else:
-        print(
-            f"Orders updated: {updated_orders}\nPositions updated: {updated_positions} (new: {new_positions})\nTrades processed: {processed}\nTime elapsed: {timedelta(seconds=elapsed)}\nSleeps: {sleeps}"
-        )
+        app.logger.info(message)
+
+
+# WS Emit Thread (Phase 1: Decouple scrape/emit)
+def emit_thread():
+    from .app import socketio  # Lazy: Import here (runs on server start, not seed load)
+    while True:
+        metrics = q.get()
+        socketio.emit('metrics_update', metrics)  # Frontend listens
+        print("Emitted metrics_update to WS clients")  # Temp; swap to logger in app
