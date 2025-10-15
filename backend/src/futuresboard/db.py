@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import sqlite3
 import os
-from datetime import datetime
+import random  # For timestamp jitter in UNIQUE
+import traceback  # For print_exc in save_metrics except
+from datetime import datetime, timedelta, timezone  # timedelta for jitter, timezone for utcnow deprecation
 
 from flask import current_app, g
 from sqlalchemy import Column, Integer, String, DateTime, Float, create_engine
@@ -15,7 +17,7 @@ import pathlib  # For Path coerce
 Base = declarative_base()  # Exported for Alembic env.py
 
 # ORM Session (try/finally safety for roadmap)
-cfg = Config.from_config_dir(pathlib.Path(os.path.dirname(os.path.dirname(__file__))))  # backend root (str → Path)
+cfg = Config.from_config_dir(pathlib.Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))) )  # root for config
 engine = create_engine(f'sqlite:///{cfg.DATABASE}')
 SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 Session = SessionLocal
@@ -25,7 +27,7 @@ class Metric(Base):
     __tablename__ = 'metrics'
     id = Column(Integer, primary_key=True, autoincrement=True)
     symbol = Column(String, nullable=False)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))  # UTC-aware default (no deprecation)
     price = Column(Float, nullable=True)
     price_change_24h_pct = Column(Float, nullable=True)
     volume_24h = Column(Float, nullable=True)
@@ -79,7 +81,7 @@ def init_app(app):
 
 def create_metrics_table():
     """Create metrics table if missing, ALTER for new cols (dev-safe)."""
-    # Raw SQL create (your existing, with UNIQUE for upsert; no # comments)
+    # Raw SQL create (your existing, with UNIQUE for upsert)
     query("""
         CREATE TABLE IF NOT EXISTS metrics (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -115,7 +117,7 @@ def create_metrics_table():
         )
     """)
     
-    # ALTER for new columns (your existing logic, added missing; no #)
+    # ALTER for new columns (your existing logic)
     db = get_db()
     cur = db.cursor()
     new_columns = [
@@ -156,10 +158,11 @@ def save_metrics(metrics):
                 except (ValueError, TypeError):
                     print(f"Parse error for {key}: {val}")
                     return None
-            
+
             # Build Metric instance
             metric = Metric(
                 symbol = m['symbol'],
+                timestamp = datetime.now(timezone.utc) + timedelta(microseconds=random.randint(0,999999)),  # Explicit + jitter for UNIQUE
                 price = safe_float('Price'),
                 price_change_24h_pct = safe_float('Price_Change_24h_Pct'),
                 volume_24h = safe_float('Volume_24h'),
@@ -186,21 +189,26 @@ def save_metrics(metrics):
                 top_ls_accounts = safe_float('Top_LS_Accounts', safe_float('Top_LS')),  # Fallback
                 top_ls_positions = safe_float('Top_LS_Positions')
             )
-            
+
             # Pre-calc oi_delta_pct (roadmap: rolling % from prev)
             prev = session.query(Metric).filter(Metric.symbol == m['symbol']).order_by(Metric.timestamp.desc()).first()
             if prev and prev.oi_abs_usd and metric.oi_abs_usd:
                 metric.oi_delta_pct = ((metric.oi_abs_usd - prev.oi_abs_usd) / prev.oi_abs_usd * 100)
+                print(f"oi_delta_pct pre-calc for {m['symbol']}: {metric.oi_delta_pct:.2f}%")  # Debug
             else:
                 metric.oi_delta_pct = 0.0
-            
+                print(f"oi_delta_pct default 0.0 for {m['symbol']} (no prev or oi_abs_usd None)")
+
+            print(f"Merging {m['symbol']}: oi_abs_usd={metric.oi_abs_usd}, global_ls_5m={metric.global_ls_5m}")  # Debug
+
             session.merge(metric)  # Upsert (roadmap)
             saved_count += 1
         session.commit()
-        print(f"Saved {saved_count} metrics to DB")  # Temp log
+        print(f"Saved {saved_count} metrics to DB - Post-commit count: {session.query(Metric).count()}")  # Debug count
         return saved_count
     except Exception as e:
         print(f"DB save error: {e}")
+        traceback.print_exc()  # Full stack
         session.rollback()
         return 0
     finally:
