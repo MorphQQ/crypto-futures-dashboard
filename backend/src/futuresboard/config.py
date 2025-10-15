@@ -10,7 +10,6 @@ from typing import Optional
 from pydantic import BaseModel
 from pydantic import DirectoryPath
 from pydantic import Field
-from pydantic import IPvAnyInterface
 from pydantic import root_validator
 from pydantic import validator
 
@@ -63,7 +62,7 @@ class Config(BaseModel):
     API_BASE_URL: Optional[str]
     AUTO_SCRAPE_INTERVAL: int = 300
     DISABLE_AUTO_SCRAPE: bool = False
-    HOST: Optional[IPvAnyInterface] = IPvAnyInterface.validate("0.0.0.0")  # type: ignore[assignment]
+    HOST: Optional[str] = Field(default='0.0.0.0')  # Fix: Str default (v1 compat; no IPvAnyInterface call)
     PORT: Optional[int] = Field(5000, ge=1, le=65535)
     API_KEY: str
     API_SECRET: str
@@ -131,7 +130,7 @@ class Config(BaseModel):
         else:
             config_dict = {}
         config_dict["CONFIG_DIR"] = config_dir
-    
+
         # .env Overrides (keep existing)
         env_exchange = os.getenv("EXCHANGE", config_dict.get("EXCHANGE", "binance")).upper()
         config_dict["EXCHANGE"] = Exchanges[env_exchange]
@@ -148,4 +147,10 @@ class Config(BaseModel):
             config_dict["SYMBOLS"] = [s.strip() for s in env_symbols.split(",") if s.strip()]
         elif "SYMBOLS" not in config_dict:
             config_dict["SYMBOLS"] = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]  # Ensure list
+
+        # Debug: Print/raise post-override (commented out to suppress spam)
+        # print(f"Debug Config: API_KEY len={len(config_dict.get('API_KEY', '')) if config_dict.get('API_KEY') else 'MISSING'}; SECRET loaded={bool(config_dict.get('API_SECRET'))}")
+        # if not config_dict.get("API_KEY") or config_dict["API_KEY"] == "":
+        #     raise ValueError("API_KEY empty/missing after .env/JSON override—check .env (API_KEY=HQ9v...) or config.json fallback")
+
         return cls.parse_obj(config_dict)

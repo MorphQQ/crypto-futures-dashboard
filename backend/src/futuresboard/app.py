@@ -69,11 +69,11 @@ def init_app(config: Config | None = None):
         data = get_metrics_by_symbol(symbol, limit)
         return jsonify([dict(row) for row in data])
 
-    # Lazy metrics import + route add (breaks cycle: post-app init)
+# Lazy metrics import + route add (breaks cycle: post-app init)
     from .metrics import add_metrics_route, metrics_bp  # Lazy: Import here + metrics_bp for register
     add_metrics_route(app)
 
-    # Register metrics_bp (for /api/metrics, /api/health)
+    # Register metrics_bp with prefix (for /api/metrics, /api/health, /api/<symbol>/history)
     app.register_blueprint(metrics_bp, url_prefix='/api')
 
     # Init SocketIO (Phase 1 WS for metrics_update)
