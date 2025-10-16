@@ -4,6 +4,10 @@ import json
 import logging
 import pathlib
 
+import argparse
+import os
+from dotenv import load_dotenv  # .env load (API_KEY, AUTO_SCRAPE_INTERVAL)
+
 from flask import Flask, redirect, request, render_template, current_app, jsonify  # Added jsonify
 from flask_cors import CORS  # For frontend fetches
 from flask_socketio import SocketIO  # WS for Phase 1 refreshes
@@ -17,7 +21,7 @@ socketio = None  # Module-level export for scraper import (set in init_app)
 
 
 def clear_trailing():
-    rp = request.path
+    rp = request.path 
     if rp != "/" and rp.endswith("/"):
         return redirect(rp[:-1])
 
@@ -74,7 +78,7 @@ def init_app(config: Config | None = None):
     add_metrics_route(app)
 
     # Register metrics_bp with prefix (for /api/metrics, /api/health, /api/<symbol>/history)
-    app.register_blueprint(metrics_bp, url_prefix='/api')
+    app.register_blueprint(metrics_bp, url_prefix='/api')  # Prefix /api (metrics_bp routes '/' → /api/metrics)
 
     # Init SocketIO (Phase 1 WS for metrics_update)
     socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)  # * for dev; restrict prod
@@ -87,3 +91,24 @@ def init_app(config: Config | None = None):
     app.logger.setLevel(logging.INFO)
     
     return app
+
+def main():
+    load_dotenv()  # Load .env early (keys for CCXT/metrics.py)
+    
+    parser = argparse.ArgumentParser(description='Crypto Futures Dashboard (Modified v0.3.3)')
+    parser.add_argument('--port', type=int, default=5000, help='Port to run on (default: 5000)')
+    args = parser.parse_args()
+    
+    # Init app (uses config.json + .env overrides)
+    print("Initializing app...")  # Debug: Aligns "Importing..." from init_app
+    app = init_app()  # Calls existing init_app (bp register, scraper auto)
+    
+    # Health/debug post-init (roadmap: /health route via metrics_bp)
+    print(f"metrics_bp imported successfully (pairs: {app.config.get('symbols', [])})")
+    print(f"Starting SocketIO on http://0.0.0.0:{args.port} (debug mode)...")
+    
+    # Run (SocketIO handles WS/HTTP; allow_unsafe_werkzeug for Windows/debug)
+    socketio.run(app, host='0.0.0.0', port=args.port, debug=True, allow_unsafe_werkzeug=True)
+
+if __name__ == '__main__':
+    main()

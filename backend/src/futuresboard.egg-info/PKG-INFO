@@ -1,3 +1,32 @@
 Metadata-Version: 2.4
 Name: futuresboard
-Version: 0.3.2
+Version: 0.3.4.dev0+g57137d4e8.d20251016
+Summary: Crypto Futures Dashboard (Modified v0.3.3 Fork)
+Author: Your Name
+Author-email: your@email.com
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: flask
+Requires-Dist: flask-socketio
+Requires-Dist: flask-cors
+Requires-Dist: sqlalchemy
+Requires-Dist: ccxt
+Requires-Dist: python-dotenv
+Requires-Dist: requests
+Requires-Dist: aiohttp
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: alembic; extra == "dev"
+Requires-Dist: setuptools_scm; extra == "dev"
+Dynamic: author
+Dynamic: author-email
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
+Crypto Futures Dashboard (Modified v0.3.3 Fork)
+
+Real-time monitoring for crypto futures OI, L/S ratios, and deltas.

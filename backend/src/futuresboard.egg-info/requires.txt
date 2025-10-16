@@ -1,0 +1,13 @@
+flask
+flask-socketio
+flask-cors
+sqlalchemy
+ccxt
+python-dotenv
+requests
+aiohttp
+
+[dev]
+pytest
+alembic
+setuptools_scm

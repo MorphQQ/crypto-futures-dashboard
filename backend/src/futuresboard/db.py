@@ -234,3 +234,11 @@ def get_metrics_by_symbol(symbol, limit=24):
         return session.query(Metric).filter(Metric.symbol == symbol).order_by(Metric.timestamp.desc()).limit(limit).all()
     finally:
         session.close()
+        
+        
+def get_latest_metrics(limit=1):
+    session = Session()
+    try:
+        return session.query(Metric).order_by(Metric.timestamp.desc()).limit(limit).all()
+    finally:
+        session.close()
