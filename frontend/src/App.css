@@ -1,3 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Vite Default Styles (logos/card/HMR) */
 #root {
   max-width: 1280px;
   margin: 0 auto;
@@ -39,4 +44,10 @@
 
 .read-the-docs {
   color: #888;
+}
+
+/* Tremor Dark Overrides (blue accents; gray-900 body) */
+html.dark {
+  --color-primary-500: #3b82f6;
+  --color-gray-900: #111827;
 }

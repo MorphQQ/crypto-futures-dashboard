@@ -58,7 +58,7 @@ def init_app(config: Config | None = None):
     app.register_blueprint(blueprint.app)
     
     # Add CORS early for all routes
-    CORS(app)
+    CORS(app, origins=['http://localhost:5173'])  # Frontend allowed
 
     # New: History routes (for charts/frontend) - early, no cycle
     @app.route('/api/metrics/history')
