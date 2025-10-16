@@ -5,6 +5,7 @@ import os
 import random  # For timestamp jitter in UNIQUE
 import traceback  # For print_exc in save_metrics except
 from datetime import datetime, timedelta, timezone  # timedelta for jitter, timezone for utcnow deprecation
+import logging
 
 from flask import current_app, g
 from sqlalchemy import Column, Integer, String, DateTime, Float, create_engine
@@ -12,7 +13,8 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base  # v1.4 compatible
 from .config import Config
 
-import pathlib  # For Path coerce
+import pathlib  # For Path coerce   
+logger = logging.getLogger(__name__)
 
 Base = declarative_base()  # Exported for Alembic env.py
 
@@ -80,8 +82,8 @@ def init_app(app):
         Base.metadata.create_all(bind=engine)  # ORM tables (safe if exists)
 
 def create_metrics_table():
-    """Create metrics table if missing, ALTER for new cols (dev-safe)."""
-    # Raw SQL create (your existing, with UNIQUE for upsert)
+    """Create metrics table if missing (raw SQL w/ all cols; idempotent for SQLite – no ALTER)."""
+    # Raw SQL create (expanded w/ all Metric model cols; UNIQUE for upsert)
     query("""
         CREATE TABLE IF NOT EXISTS metrics (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -116,6 +118,8 @@ def create_metrics_table():
             UNIQUE(symbol, timestamp) ON CONFLICT REPLACE
         )
     """)
+    print("Metrics table created/verified OK (raw SQL)")  # Debug
+    # No ALTER loop – SQLite limited; cols added on CREATE (run once or drop/recreate if diverged)
     
     # ALTER for new columns (your existing logic)
     db = get_db()
@@ -141,6 +145,7 @@ def save_metrics(metrics):
     """Batch save metrics to DB using ORM merge (upserts + pre-calc deltas; fallback raw)."""
     if not metrics:
         return 0
+    logger.info(f"Saving to DB: {cfg.DATABASE}")
     session = Session()
     try:
         saved_count = 0

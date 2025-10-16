@@ -15,13 +15,36 @@ import requests  # type: ignore
 from flask import Flask, current_app
 import json
 import asyncio
-from queue import SimpleQueue  # For WS decoupling
+from queue import Queue, Empty  # For WS decoupling with timeout support
 from flask_socketio import SocketIO  # For WS emit (import from app.py if registered)
-from .app import socketio  # Assume app.py has socketio = SocketIO(app, ...)
+
 
 from .config import Config  # Standalone load
 
-q = SimpleQueue()  # Global queue for metrics emit (Pylance fix: early define)
+q = Queue()  # Global queue for metrics emit (thread-safe with timeout)
+
+emit_thread = None  # Global thread handle
+
+def emit_worker():
+    """Daemon thread: Poll queue and emit to WS clients."""
+    from .app import socketio  # Lazy import
+    print("Emit worker started", flush=True)
+    while True:
+        try:
+            if socketio is None:
+                print("WARNING: socketio None in emit_worker – retrying in 1s", flush=True)
+                time.sleep(1)
+                continue
+            metrics = q.get(timeout=30)  # Block up to 30s
+            if metrics:
+                socketio.emit('metrics_update', {'data': metrics})  # Emit full batch
+                print(f"Emitted update for {len(metrics)} metrics", flush=True)
+            q.task_done()
+        except Empty:
+            pass  # No data, continue
+        except Exception as e:
+            print(f"Emit error: {e}", flush=True)
+            time.sleep(1)  # Backoff
 
 class HTTPRequestError(Exception):
     def __init__(self, url, code, msg=None):
@@ -43,23 +66,19 @@ def auto_scrape(app):
 
 
 def _auto_scrape(app):
-    with app.app_context():
-        interval = app.config["AUTO_SCRAPE_INTERVAL"]
-        while True:
-            app.logger.info("Auto scrape routines starting")
-            scrape(app=app)
-            # Hook: Queue metrics post-scrape (Phase 1 WS <30s)
-            with app.app_context():
-                from .metrics import get_all_metrics
-                from .db import save_metrics
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                metrics = loop.run_until_complete(get_all_metrics())
-                save_metrics(metrics)
-                q.put(metrics)  # Queue for emit thread
-                loop.close()
-            app.logger.info(f"Auto scrape routines terminated. Sleeping {interval} seconds...")
-            time.sleep(interval)
+    global emit_thread
+    # Start emit worker once (daemon, auto-clean on shutdown)
+    if emit_thread is None:
+        emit_thread = threading.Thread(target=emit_worker, daemon=True)
+        emit_thread.start()
+        app.logger.info("Emit thread started")
+    
+    interval = app.config["AUTO_SCRAPE_INTERVAL"]
+    while True:
+        app.logger.info("Auto scrape routines starting")
+        scrape(app=app)
+        app.logger.info(f"Auto scrape routines terminated. Sleeping {interval} seconds...")
+        time.sleep(interval)
 
 
 def hashing(query_string, exchange="binance", timestamp=None):
@@ -197,7 +216,7 @@ def create_table(conn, create_table_sql):
         print(e)
 
 
-def db_setup(database):
+def db_setup(database, app=None):  # Fix: Add app param for context
     sql_create_income_table = """ CREATE TABLE IF NOT EXISTS income (
                                         IID integer PRIMARY KEY AUTOINCREMENT,
                                         tranId text,
@@ -255,14 +274,41 @@ def db_setup(database):
     else:
         print("Error! cannot create the database connection.")
     
-    # Metrics table: Lazy import + raw create (no context needed)
+    # Metrics table: Lazy import + raw create (context-wrapped if app)
     try:
         from .db import create_metrics_table
-        create_metrics_table()
+        if app:  # Fix: Use passed app for context (thread-safe)
+            with app.app_context():  # Push context for query/get_db/current_app
+                create_metrics_table()
+            print("Metrics table created/verified OK")  # Debug success
+        else:
+            raise ImportError("No app for context – fallback to raw")
     except ImportError:
         print("Metrics DB support missing—install/update db.py")
     except Exception as e:
         print(f"Metrics table setup error: {e}")
+        # Fallback: Raw SQL CREATE if SQLAlchemy fails (aligns FinalRoadmap cols)
+        conn = create_connection(database)
+        if conn:
+            try:
+                c = conn.cursor()
+                c.execute("""
+                    CREATE TABLE IF NOT EXISTS metrics (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        symbol TEXT NOT NULL,
+                        oi_abs_usd FLOAT,
+                        global_ls_5m FLOAT,
+                        oi_delta_pct FLOAT,
+                        UNIQUE(symbol, timestamp) ON CONFLICT REPLACE
+                    );
+                """)
+                conn.commit()
+                print("Metrics table created via raw SQL fallback")
+            except sqlite3.Error as se:
+                print(f"Raw SQL error: {se}")
+            finally:
+                conn.close()
 
 
 # income interactions
@@ -398,7 +444,7 @@ def _scrape(app=None):
     start = time.time()
     cfg_path = pathlib.Path(os.path.dirname(__file__)).parent.parent
     cfg = Config.from_config_dir(cfg_path)
-    db_setup(cfg.DATABASE)  # Standalone
+    db_setup(cfg.DATABASE, app)  # Fix: Pass app for context
 
     up_to_date = False
     weightused = 0
@@ -836,12 +882,3 @@ def _scrape(app=None):
         print(message)
     else:
         app.logger.info(message)
-
-
-# WS Emit Thread (Phase 1: Decouple scrape/emit)
-def emit_thread():
-    from .app import socketio  # Lazy: Import here (runs on server start, not seed load)
-    while True:
-        metrics = q.get()
-        socketio.emit('metrics_update', metrics)  # Frontend listens
-        print("Emitted metrics_update to WS clients")  # Temp; swap to logger in app
