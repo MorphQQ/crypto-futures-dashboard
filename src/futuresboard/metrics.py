@@ -24,7 +24,7 @@ def api_metrics():
     limit = int(request.args.get('limit', 20))
     offset = int(request.args.get('offset', 0))
     metrics = asyncio.run(get_all_metrics(tf, exch, limit=limit, offset=offset))
-    save_metrics(metrics)
+    save_metrics(metrics, tf)  # Add tf param
     total = len(asyncio.run(get_all_metrics(tf, exch, limit=None, offset=0)))
     response = jsonify(metrics)
     response.headers['Content-Range'] = f'{offset}-{offset+len(metrics)-1}/{total}'
@@ -196,6 +196,18 @@ async def fetch_metrics(exchange, ccxt_symbol, raw_symbol, tf='5m'):
                 if prior_oi > 0:
                     oi_change_pct = f"{((current_oi - prior_oi) / prior_oi * 100):.2f}%"
             oi_changes[f'OI_Change_{tfi}_Pct'] = oi_change_pct
+            
+        # CVD: Sum vol diff (green buy +vol, red sell -vol) last 10 tf candles
+        cvd = 0.0
+        _, klines_resp = send_public_request("/fapi/v1/klines", {"symbol": raw_symbol, "interval": tf, "limit": 10})
+        if klines_resp and len(klines_resp) >= 2:
+            for kline in klines_resp[-5:]:  # Last 5
+                vol = float(kline[5])  # Quote vol
+                o, h, l, c = float(kline[1]), float(kline[2]), float(kline[3]), float(kline[4])
+                sign = 1 if c > o else -1  # Green + , red -
+                cvd += vol * sign
+        result['cvd'] = cvd
+        print(f"CVD {raw_symbol}/{tf}: {cvd:,.0f}")
         
         # Price Change Timeframes
         price_changes = {}

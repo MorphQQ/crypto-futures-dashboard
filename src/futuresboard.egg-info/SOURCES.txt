@@ -17,6 +17,7 @@ alembic/versions/__pycache__/19ed178682e9_add_oi_abs_usd_delta_cols.cpython-313.
 config/config.json
 config/config.json.example
 config/futures.db
+logs/app.log
 src/futures.db
 src/futuresboard/__init__.py
 src/futuresboard/app.py
@@ -60,3 +61,4 @@ src/futuresboard/templates/history.html
 src/futuresboard/templates/home.html
 src/futuresboard/templates/positions.html
 src/futuresboard/templates/projection.html
+src/logs/app.log
