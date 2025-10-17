@@ -120,6 +120,7 @@ async def fetch_metrics(exchange, ccxt_symbol, raw_symbol, tf='5m'):
                         print(f"Market Cap for {base} ({cg_id}): ${market_cap:,.0f}")
                     else:
                         print(f"CoinGecko error for {cg_id}: {resp.status}")
+                await asyncio.sleep(1)  # Backoff 1s for rate limit 429
         except Exception as mc_e:
             print(f"Market Cap fetch error for {raw_symbol}: {mc_e}")
         
