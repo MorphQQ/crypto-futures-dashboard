@@ -23,7 +23,7 @@ socketio = None  # Module-level export for scraper import (set in init_app)
 
 def clear_trailing():
     rp = request.path 
-    if rp != "/" and rp.endswith("/"):
+    if rp != "/" and rp.endswith("/") and not rp.startswith('/socket.io'):
         return redirect(rp[:-1])
 
 
@@ -76,7 +76,7 @@ def init_app(config: Config | None = None):
 
     @app.route('/health', methods=['GET'])
     def health_check():
-        print("Health route registered at /health")  # Debug: Confirms def executes
+        #print("Health route registered at /health")  # Debug: Confirms def executes
         try:
             # DB ping via config (aligns pydantic resolve config/futures.db)
             from .config import Config
@@ -106,7 +106,7 @@ def init_app(config: Config | None = None):
         futuresboard.scraper.auto_scrape(app)
 
     app.logger.setLevel(logging.INFO)
-    print(app.url_map)  # Debug: Show all routes (expect /health GET)
+    #print(app.url_map)  # Debug: Show all routes (expect /health GET)
     return app
 
 def main():

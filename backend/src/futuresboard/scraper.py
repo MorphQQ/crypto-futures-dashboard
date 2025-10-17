@@ -37,8 +37,8 @@ def emit_worker():
                 continue
             metrics = q.get(timeout=30)  # Block up to 30s
             if metrics:
-                socketio.emit('metrics_update', {'data': metrics})  # Emit full batch
-                print(f"Emitted update for {len(metrics)} metrics", flush=True)
+                socketio.emit('metrics_update', {'data': metrics})  # Emit {'data': [3 pairs dicts]}
+                print(f"Emitted metrics_update for {len(metrics)} pairs", flush=True)
             q.task_done()
         except Empty:
             pass  # No data, continue
