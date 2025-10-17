@@ -28,6 +28,7 @@ emit_thread = None  # Global thread handle
 def emit_worker():
     """Daemon thread: Poll queue and emit to WS clients."""
     from .app import socketio  # Lazy import
+    from .db import logger  # Add for log
     print("Emit worker started", flush=True)
     while True:
         try:
@@ -37,13 +38,15 @@ def emit_worker():
                 continue
             metrics = q.get(timeout=30)  # Block up to 30s
             if metrics:
-                socketio.emit('metrics_update', {'data': metrics})  # Emit full batch
-                print(f"Emitted update for {len(metrics)} metrics", flush=True)
+                socketio.emit('metrics_update', {'data': metrics})  # Emit {'data': [3 pairs dicts]}
+                print(f"Emitted metrics_update for {len(metrics)} pairs", flush=True)
+                logger.info(f"Emitted {len(metrics)} batch via WS")  # Add for tail Select-String
             q.task_done()
         except Empty:
             pass  # No data, continue
         except Exception as e:
             print(f"Emit error: {e}", flush=True)
+            logger.error(f"Emit error: {e}")  # Log err too
             time.sleep(1)  # Backoff
 
 class HTTPRequestError(Exception):
