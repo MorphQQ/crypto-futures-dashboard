@@ -3,9 +3,17 @@ import io from 'socket.io-client';
 import axios from 'axios';
 import { 
   Card, Title, Text, Table, TableHead, TableRow, TableHeaderCell, TableBody, TableCell, BadgeDelta, 
-  Modal, KPI, TabGroup, TabList, Tab, TabPanel, TabPanels, DonutChart, Legend 
+  Dialog, TabGroup, TabList, Tab, TabPanel, TabPanels, DonutChart, Legend, Metric 
 } from '@tremor/react';
 import './App.css';
+
+const safeFloat = (val) => {
+  if (typeof val === 'string') {
+    const cleaned = val.replace(/[^\d.-]/g, ''); // Strip $,% etc.
+    return parseFloat(cleaned) || 0;
+  }
+  return Number(val) || 0;
+};
 
 const socket = io('http://localhost:5000');
 
@@ -21,10 +29,20 @@ function App() {
     const fetchMetrics = async () => {
       try {
         const response = await axios.get(`http://localhost:5000/api/metrics?tf=${activeTab}`);
-        setMetrics(response.data);
-        console.log(`Fetched ${activeTab} metrics:`, response.data.length, 'pairs');
+        console.log('Fetch response:', response.status, response.data.length, 'pairs', response.data.slice(0,1));
+        const parsedMetrics = response.data.map(m => ({
+          ...m,
+          oi_abs_usd: safeFloat(m.oi_abs_usd),
+          oi_delta_pct: safeFloat(m.oi_delta_pct),
+          // Parse all LS keys (P2 tf)
+          Global_LS_5m: safeFloat(m.Global_LS_5m),
+          Global_LS_15m: safeFloat(m.Global_LS_15m),
+          Global_LS_30m: safeFloat(m.Global_LS_30m),
+          Global_LS_1h: safeFloat(m.Global_LS_1h)
+        }));
+        setMetrics(parsedMetrics);
       } catch (error) {
-        console.error('Fetch error:', error);
+        console.error('Fetch error:', error.response?.status, error.response?.data || error.message);
       }
     };
     fetchMetrics();
@@ -34,15 +52,24 @@ function App() {
   useEffect(() => {
     socket.on('connect', () => console.log('WS connected (EIO=4)'));
     socket.on('metrics_update', (update) => {
-      const updatedMetrics = update.data || update;
-      setMetrics(updatedMetrics);
-      console.log(`WS ${activeTab} metrics_update received:`, updatedMetrics.length, 'pairs');
+      const rawMetrics = update.data || update;
+      console.log('WS update:', rawMetrics.length, 'pairs sample:', rawMetrics.slice(0,1));
+      const parsedMetrics = rawMetrics.map(m => ({
+        ...m,
+        oi_abs_usd: safeFloat(m.oi_abs_usd),
+        oi_delta_pct: safeFloat(m.oi_delta_pct),
+        Global_LS_5m: safeFloat(m.Global_LS_5m),
+        Global_LS_15m: safeFloat(m.Global_LS_15m),
+        Global_LS_30m: safeFloat(m.Global_LS_30m),
+        Global_LS_1h: safeFloat(m.Global_LS_1h)
+      }));
+      setMetrics(parsedMetrics);
     });
     return () => {
       socket.off('connect');
       socket.off('metrics_update');
     };
-  }, [activeTab]);
+  }, []);  // Remove activeTab dep (WS global; tf filter client P2)
 
   // Modal history fetch
   useEffect(() => {
@@ -50,15 +77,16 @@ function App() {
       const fetchHistory = async () => {
         try {
           const response = await axios.get(`http://localhost:5000/api/metrics/${selectedSymbol}/history?tf=${activeTab}`);
+          const lsKey = `global_ls_${activeTab}`;
           const mappedData = response.data.map(row => ({
             time: new Date(row.time * 1000).toLocaleString(),
-            price: parseFloat(row.Price?.replace('$', '') || 0),
-            oi: row.oi_abs_usd || 0,
-            ls: row.global_ls_5m || 0
+            price: safeFloat(row.Price),
+            oi: safeFloat(row.oi_abs_usd),
+            ls: safeFloat(row[lsKey])
           }));
           setChartData(mappedData);
         } catch (error) {
-          console.error('History fetch error:', error);
+          console.error('History fetch error:', error.response?.status, error.message);
           setChartData([]);
         }
       };
@@ -71,9 +99,12 @@ function App() {
     setModalOpen(true);
   };
 
-  // Global KPI calc (2-dec USD)
-  const globalAvgOI = metrics.reduce((sum, m) => sum + (m.oi_abs_usd || 0), 0) / metrics.length;
-  const globalAvgLS = metrics.reduce((sum, m) => sum + (m.global_ls_5m || 0), 0) / metrics.length;
+  // Global KPI calc (2-dec USD; NaN safe)
+  const globalAvgOI = metrics.length > 0 ? metrics.reduce((sum, m) => sum + safeFloat(m.oi_abs_usd), 0) / metrics.length : 0;
+  const globalAvgLS = metrics.length > 0 ? metrics.reduce((sum, m) => {
+    const lsKey = `Global_LS_${activeTab}`;
+    return sum + safeFloat(m[lsKey]);
+  }, 0) / metrics.length : 0;
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4">
@@ -94,7 +125,7 @@ function App() {
 
         <main className="flex-1">
           {/* P2 Tease: Tabs tf */}
-          <TabGroup className="mb-4" value={activeTab} onValueChange={setActiveTab}>
+          <TabGroup className="mb-4" value={activeTab} onChange={setActiveTab}>
             <TabList className="bg-gray-800">
               <Tab value="5m">5m</Tab>
               <Tab value="15m">15m</Tab>
@@ -106,15 +137,17 @@ function App() {
                 <Card className="mb-4 bg-gray-800">
                   <Title>Global Metrics</Title>
                   <div className="grid grid-cols-2 gap-4 mt-4">
-                    <KPI metric={globalAvgOI.toLocaleString('en-US', { maximumFractionDigits: 2 })} color="green">
-                      Avg OI (USD)
-                    </KPI>
-                    <KPI metric={globalAvgLS.toFixed(4)} color="blue">
-                      Avg L/S Ratio
-                    </KPI>
+                    <div>
+                      <Metric>{globalAvgOI.toLocaleString('en-US', { maximumFractionDigits: 2 })}</Metric>
+                      <Text className="text-sm text-gray-400">Avg OI (USD)</Text>
+                    </div>
+                    <div>
+                      <Metric>{globalAvgLS.toFixed(4)}</Metric>
+                      <Text className="text-sm text-gray-400">Avg L/S Ratio</Text>
+                    </div>
                   </div>
                 </Card>
-                <Grid numCols={1} className="gap-4">
+                <div className="grid grid-cols-1 gap-4">  // className for Grid; no numCols prop
                   <Card className="bg-gray-800">
                     <Table>
                       <TableHead>
@@ -126,49 +159,61 @@ function App() {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {metrics.map((metric) => {
-                          const oiDelta = metric.oi_delta_pct;
-                          const deltaType = oiDelta > 0 ? 'increase' : 'decrease';
-                          const lsKey = `Global_LS_${activeTab}`;
-                          return (
-                            <TableRow key={metric.symbol} onClick={() => handleRowClick(metric.symbol)} className="cursor-pointer hover:bg-gray-700">
-                              <TableCell>{metric.symbol}</TableCell>
-                              <TableCell>${(metric.oi_abs_usd || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}</TableCell>
-                              <TableCell>{metric[lsKey]?.toFixed(4) ?? 'N/A'}</TableCell>
-                              <TableCell>
-                                <BadgeDelta deltaType={deltaType}>
-                                  {oiDelta?.toFixed(2) ?? 'N/A'}%
-                                </BadgeDelta>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
+                        {metrics.length > 0 ? (
+                          metrics.map((metric) => {
+                            const oiDelta = safeFloat(metric.oi_delta_pct);
+                            const deltaType = oiDelta > 0 ? 'increase' : oiDelta < 0 ? 'decrease' : 'unchanged';
+                            const lsKey = `Global_LS_${activeTab}`;
+                            const lsValue = safeFloat(metric[lsKey]);
+                            return (
+                              <TableRow key={metric.symbol} onClick={() => handleRowClick(metric.symbol)} className="cursor-pointer hover:bg-gray-700">
+                                <TableCell>{metric.symbol}</TableCell>
+                                <TableCell>${metric.oi_abs_usd.toLocaleString('en-US', { maximumFractionDigits: 2 })}</TableCell>
+                                <TableCell>{isNaN(lsValue) ? 'N/A' : lsValue.toFixed(4)}</TableCell>
+                                <TableCell>
+                                  <BadgeDelta deltaType={deltaType}>
+                                    {isNaN(oiDelta) ? 'N/A' : `${oiDelta.toFixed(2)}%`}
+                                  </BadgeDelta>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={4} className="text-center text-gray-400">No metrics loaded (check fetch)</TableCell>
+                          </TableRow>
+                        )}
                       </TableBody>
                     </Table>
                   </Card>
-                  {/* P3 Tease: DonutChart LS distribution */}
+                  {/* P3 Tease: DonutChart LS distribution (data check) */}
                   <Card className="bg-gray-800">
                     <Title>LS Ratio Distribution</Title>
-                    <DonutChart
-                      className="mt-6 h-80"
-                      data={metrics.map(m => ({ name: m.symbol, value: m.global_ls_5m || 0 }))}
-                      category="value"
-                      index="name"
-                      colors={['blue', 'green', 'orange']}
-                      showLegend={false}
-                    />
-                    <Legend
-                      className="mt-4"
-                      data={metrics.map(m => ({ name: m.symbol, color: 'blue' }))}
-                    />
+                    {metrics.length > 0 ? (
+                      <>
+                        <DonutChart
+                          className="mt-6 h-80"
+                          data={metrics.map(m => ({ name: m.symbol, value: m.global_ls_5m || 0 }))}
+                          category="value"
+                          index="name"
+                          colors={['blue', 'green', 'orange']}
+                        />
+                        <Legend
+                          className="mt-4"
+                          data={metrics.map(m => ({ name: m.symbol, color: 'blue' }))}
+                        />
+                      </>
+                    ) : (
+                      <Text className="text-gray-400">No data</Text>
+                    )}
                   </Card>
-                </Grid>
+                </div>
               </TabPanel>
             </TabPanels>
           </TabGroup>
 
           {/* Modal for Chart */}
-          <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} className="bg-gray-800">
+          <Dialog open={modalOpen} onClose={() => setModalOpen(false)} className="bg-gray-800">
             <Title>Chart for {selectedSymbol} ({activeTab})</Title>
             {/* P4 Tease: Slider zoom */}
             <div className="mt-4">
@@ -186,7 +231,7 @@ function App() {
             <button className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
               Export CSV (Papa P2)
             </button>
-          </Modal>
+          </Dialog>
         </main>
       </div>
     </div>
