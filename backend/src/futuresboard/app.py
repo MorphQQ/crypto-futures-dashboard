@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import pathlib
+import sqlite3
 
 import argparse
 import os
@@ -73,7 +74,23 @@ def init_app(config: Config | None = None):
         data = get_metrics_by_symbol(symbol, limit)
         return jsonify([dict(row) for row in data])
 
-# Lazy metrics import + route add (breaks cycle: post-app init)
+    @app.route('/health', methods=['GET'])
+    def health_check():
+        print("Health route registered at /health")  # Debug: Confirms def executes
+        try:
+            # DB ping via config (aligns pydantic resolve config/futures.db)
+            from .config import Config
+            cfg = Config.from_config_dir(pathlib.Path.cwd())
+            db_path = str(cfg.DATABASE)
+            conn = sqlite3.connect(db_path)
+            conn.execute('SELECT 1')
+            conn.close()
+            return jsonify({'status': 'healthy', 'version': 'v0.3.3', 'db_path': db_path}), 200
+        except Exception as e:
+            current_app.logger.error(f"Health check failed: {e}")
+            return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
+        
+    # Lazy metrics import + route add (breaks cycle: post-app init)
     from .metrics import add_metrics_route, metrics_bp  # Lazy: Import here + metrics_bp for register
     add_metrics_route(app)
 
@@ -89,7 +106,7 @@ def init_app(config: Config | None = None):
         futuresboard.scraper.auto_scrape(app)
 
     app.logger.setLevel(logging.INFO)
-    
+    print(app.url_map)  # Debug: Show all routes (expect /health GET)
     return app
 
 def main():
