@@ -70,17 +70,29 @@ def auto_scrape(app):
 
 def _auto_scrape(app):
     global emit_thread
-    # Start emit worker once (daemon, auto-clean on shutdown)
     if emit_thread is None:
         emit_thread = threading.Thread(target=emit_worker, daemon=True)
         emit_thread.start()
         app.logger.info("Emit thread started")
     
     interval = app.config["AUTO_SCRAPE_INTERVAL"]
+    tfs = ['5m', '15m', '30m', '1h']  # P2 cycle
+    tf_idx = 0
     while True:
         app.logger.info("Auto scrape routines starting")
-        scrape(app=app)
-        app.logger.info(f"Auto scrape routines terminated. Sleeping {interval} seconds...")
+        tf = tfs[tf_idx % len(tfs)]  # Rotate tf
+        # ... existing scrape(app=app) ...
+        # Lazy metrics hook: Pass tf to get_all_metrics/save_metrics
+        from .metrics import get_all_metrics
+        from .db import save_metrics
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        metrics = loop.run_until_complete(get_all_metrics(tf=tf))  # Add tf
+        saved_count = save_metrics(metrics, tf)  # tf
+        loop.close()
+        app.logger.info(f"Saved {saved_count} metrics tf={tf}")
+        q.put(metrics)  # Emit tf-specific
+        tf_idx += 1
         time.sleep(interval)
 
 
