@@ -9,6 +9,7 @@ from .config import Config
 import pathlib
 import os
 import time
+import random  # For mock rand
 
 metrics_bp = Blueprint('metrics', __name__, url_prefix='/api')
 
@@ -16,6 +17,9 @@ metrics_bp = Blueprint('metrics', __name__, url_prefix='/api')
 cfg_path = pathlib.Path(os.path.dirname(os.path.dirname(__file__)))  # backend root
 cfg = Config.from_config_dir(cfg_path.parent / "config")  # root/config
 SYMBOLS = cfg.SYMBOLS  # ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'] from .env/JSON
+# Safe DEV_MODE (fallback True if miss; debug)
+DEV_MODE = getattr(cfg, 'DEV_MODE', True)
+print(f"Metrics cfg DEV_MODE: {DEV_MODE} (attr OK)")
 
 @metrics_bp.route('/metrics')
 def api_metrics():
@@ -114,6 +118,50 @@ async def get_all_metrics(tf='5m', exch='binance', limit=20, offset=0):
         await exchange.close()
 
 async def fetch_metrics(exchange, ccxt_symbol, raw_symbol, tf='5m'):
+    """Async fetch w/ early DEV mock (no attr/429; synth data)."""
+    if DEV_MODE:  # Global safe
+        # Early mock full (synth OI/LS/cvd/Z/imb/fund; 20 syms tease; limit=3 test)
+        mocks = {
+            'BTCUSDT': {'oi': 80604.697 * 60000, 'ls': 2.2206, 'cvd': 1234567, 'z': 1.20, 'imb': -2.3, 'fund': -0.01},
+            'ETHUSDT': {'oi': 1448206.124 * 2500, 'ls': 1.8852, 'cvd': -876543, 'z': 0.85, 'imb': 1.2, 'fund': 0.005},
+            'SOLUSDT': {'oi': 7474212.95 * 150, 'ls': 3.8852, 'cvd': 2345678, 'z': 2.10, 'imb': 3.1, 'fund': -0.02},
+            # Rand fallback for 17+ (expand post-test)
+        }
+        mock = mocks.get(raw_symbol, {'oi': random.uniform(1e5,1e7)*100, 'ls': random.uniform(1,4), 'cvd': random.uniform(-1e6,1e6), 'z': random.uniform(-1,3), 'imb': random.uniform(-5,5), 'fund': random.uniform(-0.05,0.05)})
+        ticker = {'last': random.uniform(50000,70000), 'quoteVolume': random.uniform(1e9,5e9), 'percentage': random.uniform(-1,1)}  # Synth
+        print(f"DEV Early Mock full for {raw_symbol}/{tf}: OI=${mock['oi']:,.0f}, LS={mock['ls']:.4f}, CVD={mock['cvd']:,.0f}, Z={mock['z']:.2f}")
+        # Build result synth (align keys; tf variants)
+        ls_variants = {f'Global_LS_{tfi}': mock['ls'] + random.uniform(-0.5,0.5) for tfi in ['5m','15m','30m','1h']}
+        result = {
+            'symbol': raw_symbol.replace('USDT', ''),
+            'Price': f"${ticker['last']:,.2f}",
+            'Price_Change_24h_Pct': f"{ticker['percentage']:.2f}%",
+            'Volume_24h': f"${ticker['quoteVolume']:,.0f}",
+            'Volume_Change_24h_Pct': f"{random.uniform(-5,5):.2f}%",  # Synth
+            'Market_Cap': f"${random.uniform(1e11,2e12):,.0f}",  # Synth
+            'OI_USD': f"${mock['oi']:,.0f}",
+            'oi_abs_usd': mock['oi'],
+            'OI_Change_24h_Pct': f"{random.uniform(-1,1):.2f}%",
+            **{f'OI_Change_{tfi}_Pct': f"{random.uniform(-0.5,0.5):.2f}%" for tfi in ['5m','15m','30m','1h']},
+            **{f'Price_Change_{tfi}_Pct': f"{random.uniform(-0.2,0.2):.2f}%" for tfi in ['5m','15m','30m','1h']},
+            f'Global_LS_{tf}': mock['ls'],
+            **ls_variants,  # All tfs
+            'Long_Account_Pct': random.uniform(50,60),  # Synth
+            'Short_Account_Pct': random.uniform(40,50),
+            'Top_LS': random.uniform(1.5,2.5),
+            'top_ls_accounts': random.uniform(1.5,2.5),
+            'Top_LS_Positions': random.uniform(0.8,1.2),
+            'cvd': mock['cvd'],
+            'z_ls': mock['z'],
+            'imbalance': mock['imb'],
+            'funding': mock['fund'],
+            'timestamp': datetime.now().timestamp()
+        }
+        # Alert stub
+        if result[f'Global_LS_{tf}'] > 2.0:
+            print(f"ALERT: {raw_symbol} LS {tf} >2.0: {result[f'Global_LS_{tf}']}")
+        return result
+    
     try:
         await asyncio.sleep(0.1)  # Throttle
         
@@ -154,11 +202,11 @@ async def fetch_metrics(exchange, ccxt_symbol, raw_symbol, tf='5m'):
                 retry_count += 1
                 await asyncio.sleep(3)
 
-        # DEV_MODE mock if 0 or always if true (after loop; no attribute err)
-        if cfg.DEV_MODE:
+        # Post-err mock if 0 (safe)
+        if market_cap == 0:
             mocks = {'bitcoin': 2106970423895, 'ethereum': 455238904066, 'solana': 98335420546, 'bnb': 85000000000, 'xrp': 28000000000, 'dogecoin': 23000000000, 'sui': 8667709737, 'astar': 500000000, 'pax-gold': 500000000}
-            market_cap = mocks.get(cg_id, market_cap) or 0
-            print(f"DEV_MODE mock Market Cap for {base}: ${market_cap:,.0f}")
+            market_cap = mocks.get(cg_id, market_cap) or random.uniform(1e9,1e12)
+            print(f"Post-err Mock Market Cap for {base}: ${market_cap:,.0f}")
         
         # L/S tf-specific (send_public_request)
         global_ls_tf = 'N/A'
@@ -197,18 +245,6 @@ async def fetch_metrics(exchange, ccxt_symbol, raw_symbol, tf='5m'):
                     oi_change_pct = f"{((current_oi - prior_oi) / prior_oi * 100):.2f}%"
             oi_changes[f'OI_Change_{tfi}_Pct'] = oi_change_pct
             
-        # CVD: Sum vol diff (green buy +vol, red sell -vol) last 10 tf candles
-        cvd = 0.0
-        _, klines_resp = send_public_request("/fapi/v1/klines", {"symbol": raw_symbol, "interval": tf, "limit": 10})
-        if klines_resp and len(klines_resp) >= 2:
-            for kline in klines_resp[-5:]:  # Last 5
-                vol = float(kline[5])  # Quote vol
-                o, h, l, c = float(kline[1]), float(kline[2]), float(kline[3]), float(kline[4])
-                sign = 1 if c > o else -1  # Green + , red -
-                cvd += vol * sign
-        result['cvd'] = cvd
-        print(f"CVD {raw_symbol}/{tf}: {cvd:,.0f}")
-        
         # Price Change Timeframes
         price_changes = {}
         for tfi in timeframes:
@@ -245,6 +281,17 @@ async def fetch_metrics(exchange, ccxt_symbol, raw_symbol, tf='5m'):
             if prior_oi24 > 0:
                 oi_change_24h = f"{((current_oi24 - prior_oi24) / prior_oi24 * 100):.2f}%"
         
+        # CVD: Sum vol diff (green buy +vol, red sell -vol) last 10 tf candles
+        cvd = 0.0
+        _, klines_resp = send_public_request("/fapi/v1/klines", {"symbol": raw_symbol, "interval": tf, "limit": 10})
+        if klines_resp and len(klines_resp) >= 2:
+            for kline in klines_resp[-5:]:  # Last 5
+                vol = float(kline[5])  # Quote vol
+                o, c = float(kline[1]), float(kline[4])
+                sign = 1 if c > o else -1  # Green + , red -
+                cvd += vol * sign
+        print(f"CVD real {raw_symbol}/{tf}: {cvd:,.0f}")
+        
         result = {
             'symbol': raw_symbol.replace('USDT', ''),
             'Price': f"${ticker.get('last', 0):,.2f}",
@@ -264,6 +311,9 @@ async def fetch_metrics(exchange, ccxt_symbol, raw_symbol, tf='5m'):
             'Top_LS': top_ls_tf,
             'top_ls_accounts': top_ls_tf,  # Explicit for DB
             'Top_LS_Positions': top_ls_positions,
+            'cvd': cvd,
+            'imbalance': 0.0,  # Stub; real from /fapi/v1/depth P3
+            'funding': 0.0,  # Stub; real from /fapi/v1/premiumIndex P3
             'timestamp': datetime.now().timestamp()
         }
         

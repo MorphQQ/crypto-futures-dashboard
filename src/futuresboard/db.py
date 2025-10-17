@@ -106,8 +106,8 @@ def init_app(app):
         Base.metadata.create_all(bind=engine)  # ORM tables (safe if exists)
 
 def create_metrics_table():
-    """Create metrics table if missing (raw SQL w/ all cols; idempotent for SQLite – no ALTER)."""
-    # Raw SQL create (expanded w/ all Metric model cols; UNIQUE for upsert)
+    """Create metrics table if missing (raw SQL w/ all cols explicit; idempotent)."""
+    # Full explicit SQL (no #; align Metric model + P2 cols)
     query("""
         CREATE TABLE IF NOT EXISTS metrics (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -141,34 +141,33 @@ def create_metrics_table():
             top_ls_positions REAL,
             ls_delta_pct REAL,
             cvd REAL,
-            z_ls REAL,  # New
-            imbalance REAL,  # New
-            funding REAL,  # New
+            z_ls REAL,
+            imbalance REAL,
+            funding REAL,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(symbol, timeframe, timestamp) ON CONFLICT REPLACE
         )
     """)
-    print("Metrics table created/verified OK (raw SQL)")  # Debug
-    # No ALTER loop – SQLite limited; cols added on CREATE (run once or drop/recreate if diverged)
-    new_columns += ['timeframe', 'z_ls', 'imbalance', 'funding']  # Append to existing list
-    # ALTER for new columns (your existing logic)
+    print("Metrics table created/verified OK (raw SQL)")
+    
+    # ALTER for new/missing cols (idempotent; full list)
     db = get_db()
     cur = db.cursor()
-    new_columns = [
+    all_columns = [
         'price', 'price_change_24h_pct', 'volume_24h', 'volume_change_24h_pct', 'market_cap',
-        'oi_change_24h_pct', 'oi_change_5m_pct', 'oi_change_15m_pct', 'oi_change_30m_pct', 'oi_change_1h_pct',
+        'oi_usd', 'oi_abs_usd', 'oi_change_24h_pct', 'oi_change_5m_pct', 'oi_change_15m_pct',
+        'oi_change_30m_pct', 'oi_change_1h_pct', 'oi_delta_pct',
         'price_change_5m_pct', 'price_change_15m_pct', 'price_change_30m_pct', 'price_change_1h_pct',
         'global_ls_5m', 'global_ls_15m', 'global_ls_30m', 'global_ls_1h',
-        'long_account_pct', 'short_account_pct', 'top_ls', 'top_ls_positions',
-        'oi_abs_usd', 'oi_delta_pct', 'top_ls_accounts',
-        'ls_delta_pct', 'cvd'  # New P2
+        'long_account_pct', 'short_account_pct', 'top_ls', 'top_ls_accounts', 'top_ls_positions',
+        'ls_delta_pct', 'cvd', 'z_ls', 'imbalance', 'funding'
     ]
-    for col in new_columns:
+    for col in all_columns:
         try:
             cur.execute(f"ALTER TABLE metrics ADD COLUMN {col} REAL")
             print(f"Added column {col} to metrics table")
         except sqlite3.OperationalError:
-            pass  # Already exists
+            pass  # Exists
     db.commit()
     cur.close()
 
