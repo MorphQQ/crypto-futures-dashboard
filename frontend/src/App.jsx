@@ -3,7 +3,7 @@ import io from 'socket.io-client';
 import axios from 'axios';
 import { 
   Card, Title, Text, Table, TableHead, TableRow, TableHeaderCell, TableBody, TableCell, BadgeDelta, 
-  Modal, KPIList, Metric, Value, TabGroup, TabList, Tab, TabPanel, TabPanels, DonutChart, Legend 
+  Modal, KPI, TabGroup, TabList, Tab, TabPanel, TabPanels, DonutChart, Legend 
 } from '@tremor/react';
 import './App.css';
 
@@ -74,10 +74,6 @@ function App() {
   // Global KPI calc (2-dec USD)
   const globalAvgOI = metrics.reduce((sum, m) => sum + (m.oi_abs_usd || 0), 0) / metrics.length;
   const globalAvgLS = metrics.reduce((sum, m) => sum + (m.global_ls_5m || 0), 0) / metrics.length;
-  const kpiData = [
-    { title: 'Avg OI (USD)', metric: globalAvgOI.toLocaleString('en-US', { maximumFractionDigits: 2 }), color: 'green' },
-    { title: 'Avg L/S Ratio', metric: globalAvgLS.toFixed(4), color: 'blue' }
-  ];
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4">
@@ -106,8 +102,19 @@ function App() {
             </TabList>
             <TabPanels>
               <TabPanel>
-                <KPIList data={kpiData} className="mb-4" />
-                <Grid numCols={1} className="gap-4">  // Single col; no Sm/Md warning
+                {/* KPI globals in Card */}
+                <Card className="mb-4 bg-gray-800">
+                  <Title>Global Metrics</Title>
+                  <div className="grid grid-cols-2 gap-4 mt-4">
+                    <KPI metric={globalAvgOI.toLocaleString('en-US', { maximumFractionDigits: 2 })} color="green">
+                      Avg OI (USD)
+                    </KPI>
+                    <KPI metric={globalAvgLS.toFixed(4)} color="blue">
+                      Avg L/S Ratio
+                    </KPI>
+                  </div>
+                </Card>
+                <Grid numCols={1} className="gap-4">
                   <Card className="bg-gray-800">
                     <Table>
                       <TableHead>
@@ -167,7 +174,7 @@ function App() {
             <div className="mt-4">
               <input type="range" min="0" max={Math.max(0, chartData.length - 1)} className="w-full" onChange={(e) => console.log('Slider:', e.target.value)} />
             </div>
-            {/* LineChart stub (P1; Recharts P4 full) */}
+            {/* LineChart stub */}
             <div className="h-96 mt-4 bg-gray-700 rounded flex items-center justify-center">
               {chartData.length > 0 ? (
                 <Text>LineChart Stub: Price/OI/LS lines for {selectedSymbol} (zoom slider tease)</Text>
