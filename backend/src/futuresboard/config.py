@@ -148,9 +148,13 @@ class Config(BaseModel):
         elif "SYMBOLS" not in config_dict:
             config_dict["SYMBOLS"] = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]  # Ensure list
 
-        # Debug: Print/raise post-override (commented out to suppress spam)
-        # print(f"Debug Config: API_KEY len={len(config_dict.get('API_KEY', '')) if config_dict.get('API_KEY') else 'MISSING'}; SECRET loaded={bool(config_dict.get('API_SECRET'))}")
-        # if not config_dict.get("API_KEY") or config_dict["API_KEY"] == "":
-        #     raise ValueError("API_KEY empty/missing after .env/JSON override—check .env (API_KEY=HQ9v...) or config.json fallback")
+        # Add: DEV_MODE from .env
+        config_dict["DEV_MODE"] = os.getenv("DEV_MODE", "false").lower() == "true"
+        
+        # Add: LOG_LEVEL from .env
+        config_dict["LOG_LEVEL"] = os.getenv("LOG_LEVEL", "INFO").upper()
+
+        # Debug: Print post-override (suppress spam; uncomment if needed)
+        print(f"Config loaded: DEV_MODE={config_dict['DEV_MODE']}, LOG_LEVEL={config_dict['LOG_LEVEL']}, INTERVAL={config_dict['AUTO_SCRAPE_INTERVAL']}s")
 
         return cls.parse_obj(config_dict)

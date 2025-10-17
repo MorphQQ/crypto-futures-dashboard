@@ -6,6 +6,7 @@ import {
   Dialog, TabGroup, TabList, Tab, TabPanel, TabPanels, DonutChart, Legend, Metric 
 } from '@tremor/react';
 import './App.css';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const safeFloat = (val) => {
   if (typeof val === 'string') {
@@ -29,10 +30,11 @@ function App() {
     const fetchMetrics = async () => {
       try {
         const response = await axios.get(`http://localhost:5000/api/metrics?tf=${activeTab}`);
-        console.log('Fetch response:', response.status, response.data.length, 'pairs', response.data.slice(0,1));
+        console.log('Fetch response:', response.status, response.data.length, 'pairs', response.data);  // Full array debug (8 items?)
         const parsedMetrics = response.data.map(m => ({
           ...m,
           oi_abs_usd: safeFloat(m.oi_abs_usd),
+          formatted_oi: safeFloat(m.oi_abs_usd).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }),
           oi_delta_pct: safeFloat(m.oi_delta_pct),
           // Parse all LS keys (P2 tf)
           Global_LS_5m: safeFloat(m.Global_LS_5m),
@@ -53,10 +55,11 @@ function App() {
     socket.on('connect', () => console.log('WS connected (EIO=4)'));
     socket.on('metrics_update', (update) => {
       const rawMetrics = update.data || update;
-      console.log('WS update:', rawMetrics.length, 'pairs sample:', rawMetrics.slice(0,1));
+      console.log('WS update:', rawMetrics.length, 'pairs sample:', rawMetrics.slice(0,1));  // Sample only (spam reduce)
       const parsedMetrics = rawMetrics.map(m => ({
         ...m,
         oi_abs_usd: safeFloat(m.oi_abs_usd),
+        formatted_oi: safeFloat(m.oi_abs_usd).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }),
         oi_delta_pct: safeFloat(m.oi_delta_pct),
         Global_LS_5m: safeFloat(m.Global_LS_5m),
         Global_LS_15m: safeFloat(m.Global_LS_15m),
@@ -81,8 +84,8 @@ function App() {
           const mappedData = response.data.map(row => ({
             time: new Date(row.time * 1000).toLocaleString(),
             price: safeFloat(row.Price),
-            oi: safeFloat(row.oi_abs_usd),
-            ls: safeFloat(row[lsKey])
+            oi: safeFloat(row.oi_abs_usd || row.oi_abs),
+            ls: safeFloat(row[lsKey]) || 0  // Fallback 0 if None
           }));
           setChartData(mappedData);
         } catch (error) {
@@ -147,7 +150,7 @@ function App() {
                     </div>
                   </div>
                 </Card>
-                <div className="grid grid-cols-1 gap-4">  // className for Grid; no numCols prop
+                <div className="grid grid-cols-1 gap-4">
                   <Card className="bg-gray-800">
                     <Table>
                       <TableHead>
@@ -168,7 +171,7 @@ function App() {
                             return (
                               <TableRow key={metric.symbol} onClick={() => handleRowClick(metric.symbol)} className="cursor-pointer hover:bg-gray-700">
                                 <TableCell>{metric.symbol}</TableCell>
-                                <TableCell>${metric.oi_abs_usd.toLocaleString('en-US', { maximumFractionDigits: 2 })}</TableCell>
+                                <TableCell>{metric.formatted_oi}</TableCell>
                                 <TableCell>{isNaN(lsValue) ? 'N/A' : lsValue.toFixed(4)}</TableCell>
                                 <TableCell>
                                   <BadgeDelta deltaType={deltaType}>
@@ -193,14 +196,17 @@ function App() {
                       <>
                         <DonutChart
                           className="mt-6 h-80"
-                          data={metrics.map(m => ({ name: m.symbol, value: m.global_ls_5m || 0 }))}
+                          data={metrics.map(m => ({ name: m.symbol, value: safeFloat(m[`Global_LS_${activeTab}`]) || 0 }))}  // Dynamic tf
                           category="value"
                           index="name"
                           colors={['blue', 'green', 'orange']}
+                          showAnimation={false}  // Suppress resize warns
+                          minHeight={300}  // Explicit height px
                         />
                         <Legend
                           className="mt-4"
-                          data={metrics.map(m => ({ name: m.symbol, color: 'blue' }))}
+                          categories={metrics.map(m => m.symbol)}
+                          colors={['blue', 'green', 'orange']}
                         />
                       </>
                     ) : (
@@ -219,14 +225,19 @@ function App() {
             <div className="mt-4">
               <input type="range" min="0" max={Math.max(0, chartData.length - 1)} className="w-full" onChange={(e) => console.log('Slider:', e.target.value)} />
             </div>
-            {/* LineChart stub */}
-            <div className="h-96 mt-4 bg-gray-700 rounded flex items-center justify-center">
-              {chartData.length > 0 ? (
-                <Text>LineChart Stub: Price/OI/LS lines for {selectedSymbol} (zoom slider tease)</Text>
-              ) : (
-                <Text>No data (history fetch stub)</Text>
-              )}
-            </div>
+            {/* LineChart (P1 lines: price/OI/LS) */}
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={chartData} margin={{top: 5, right: 30, left: 20, bottom: 5}}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="time" angle={-45} textAnchor="end" height={70} />
+                <YAxis yAxisId="left" orientation="left" />
+                <YAxis yAxisId="right" orientation="right" domain={['dataMin * 0.95', 'dataMax * 1.05']} />
+                <Tooltip />
+                <Line type="monotone" dataKey="price" yAxisId="left" stroke="#8884d8" name="Price" />
+                <Line type="monotone" dataKey="oi" yAxisId="right" stroke="#82ca9d" name="OI" />
+                <Line type="monotone" dataKey="ls" stroke="#ffc658" name="L/S" />
+              </LineChart>
+            </ResponsiveContainer>
             {/* P2 Tease: Export button */}
             <button className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
               Export CSV (Papa P2)

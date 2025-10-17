@@ -21,18 +21,36 @@ SYMBOLS = cfg.SYMBOLS  # ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'] from .env/JSON
 def api_metrics():
     tf = request.args.get('tf', '5m')
     exch = request.args.get('exch', 'binance')
-    metrics = asyncio.run(get_all_metrics(tf, exch))  # Batch async
-    save_metrics(metrics)  # Upsert + pre-calc oi_delta_pct
-    return jsonify(metrics)  # {symbol: 'BTCUSDT', oi_abs_usd: 3.2e9, global_ls_5m: 1.61, oi_delta_pct: 0.0, ...}
+    limit = int(request.args.get('limit', 20))
+    offset = int(request.args.get('offset', 0))
+    metrics = asyncio.run(get_all_metrics(tf, exch, limit=limit, offset=offset))
+    save_metrics(metrics)
+    total = len(asyncio.run(get_all_metrics(tf, exch, limit=None, offset=0)))
+    response = jsonify(metrics)
+    response.headers['Content-Range'] = f'{offset}-{offset+len(metrics)-1}/{total}'
+    return response
 
 @metrics_bp.route('/<symbol>/history')
 def api_history(symbol, tf='5m'):
     session = Session()
     try:
-        hist = session.query(Metric).filter(Metric.symbol == symbol).order_by(Metric.timestamp.desc()).limit(20160).all()  # 2w @1h
-        return jsonify([{'time': m.timestamp, 'oi_abs': m.oi_abs_usd, 'ls': getattr(m, f'global_ls_{tf}')} for m in hist])
+        hist = session.query(Metric).filter(Metric.symbol == symbol).order_by(Metric.timestamp.desc()).limit(24).all()  # P1: 24 points (5m=2h)
+        ls_key = f'global_ls_{tf}'  # e.g., global_ls_5m
+        history = []
+        for m in hist:
+            history.append({
+                'time': int(m.timestamp.timestamp() * 1000),  # Unix ms for Recharts new Date(*1000)
+                'Price': m.price,  # Add for App.jsx safeFloat(row.Price)
+                'oi_abs_usd': m.oi_abs_usd,  # Align (vs oi_abs)
+                ls_key: getattr(m, ls_key, None)  # Dynamic: global_ls_5m: 2.9002
+            })
+        print(f"History for {symbol}/{tf}: {len(history)} points")  # Debug (console on fetch)
+        return jsonify(history)
+    except Exception as e:
+        print(f"History error for {symbol}/{tf}: {e}")
+        return jsonify([]), 500
     finally:
-        session.close()  # Safety
+        session.close()
 
 @metrics_bp.route('/health')  # Phase 1: Simple status
 def health():
@@ -44,7 +62,7 @@ def add_metrics_route(app):
     """Lazy add for app.py (no cycle). Placeholder for Phase 4 replay."""
     pass  # Registers bp; extend w/ replay slider joins
 
-async def get_all_metrics(tf='5m', exch='binance'):
+async def get_all_metrics(tf='5m', exch='binance', limit=20, offset=0):
     """Batch fetch with dynamic top-20, backoff (Phase 1). Standalone."""
     exchange_class = getattr(ccxt_async, exch, ccxt_async.binance)
     exchange = exchange_class({
@@ -58,9 +76,10 @@ async def get_all_metrics(tf='5m', exch='binance'):
         # Dynamic top-20 (sort by quoteVolume; seed with config SYMBOLS=3)
         tickers = await exchange.fetch_tickers()
         usdt_pairs = [s for s in tickers if '/USDT:USDT' in s]
-        sorted_ccxt_symbols = sorted(usdt_pairs, key=lambda x: tickers[x].get('quoteVolume', 0), reverse=True)[:20]
-        raw_symbols = [s.replace('/USDT:USDT', 'USDT') for s in sorted_ccxt_symbols]  # Top-20
-        raw_symbols = raw_symbols[:len(SYMBOLS)]  # Limit to config 3 for MVP
+        sorted_ccxt_symbols = sorted(usdt_pairs, key=lambda x: tickers[x].get('quoteVolume', 0), reverse=True)
+        if limit is not None:
+            sorted_ccxt_symbols = sorted_ccxt_symbols[offset:offset+limit]
+        raw_symbols = [s.replace('/USDT:USDT', 'USDT') for s in sorted_ccxt_symbols]  # Dynamic top-N, no [:len(SYMBOLS)]
         ccxt_symbols = [s.replace('USDT', '/USDT:USDT') for s in raw_symbols]
         
         # Batch chunks 10/pair w/ backoff
@@ -106,23 +125,40 @@ async def fetch_metrics(exchange, ccxt_symbol, raw_symbol, tf='5m'):
         print(f"Raw OI Data for {raw_symbol}: {oi_data.get('openInterestAmount', 'N/A')} contracts")
         
         # Market Cap: CoinGecko (async aiohttp)
-        coingecko_ids = {'BTC': 'bitcoin', 'ETH': 'ethereum', 'SOL': 'solana'}
+        coingecko_ids = {'BTC': 'bitcoin', 'ETH': 'ethereum', 'SOL': 'solana', 'BNB': 'bnb', 'XRP': 'xrp', 'DOG': 'dogecoin', 'SUI': 'sui', 'AST': 'astar', 'PAX': 'pax-gold'}
         base = raw_symbol.replace('USDT', '').upper()[:3]
         cg_id = coingecko_ids.get(base, base.lower())
         market_cap = 0
-        try:
-            async with aiohttp.ClientSession() as session:
-                url = f"https://api.coingecko.com/api/v3/simple/price?ids={cg_id}&vs_currencies=usd&include_market_cap=true"
-                async with session.get(url) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        market_cap = data.get(cg_id, {}).get('usd_market_cap', 0)
-                        print(f"Market Cap for {base} ({cg_id}): ${market_cap:,.0f}")
-                    else:
-                        print(f"CoinGecko error for {cg_id}: {resp.status}")
-                await asyncio.sleep(1)  # Backoff 1s for rate limit 429
-        except Exception as mc_e:
-            print(f"Market Cap fetch error for {raw_symbol}: {mc_e}")
+        retry_count = 0
+        max_retries = 5
+        while retry_count < max_retries:
+            try:
+                async with aiohttp.ClientSession() as session:
+                    url = f"https://api.coingecko.com/api/v3/simple/price?ids={cg_id}&vs_currencies=usd&include_market_cap=true"
+                    async with session.get(url) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            market_cap = data.get(cg_id, {}).get('usd_market_cap', 0)
+                            print(f"Market Cap for {base} ({cg_id}): ${market_cap:,.0f}")
+                            break
+                        elif resp.status == 429:
+                            retry_count += 1
+                            wait = 3 ** retry_count
+                            print(f"CoinGecko 429 for {cg_id}: retry {retry_count}/{max_retries} in {wait}s")
+                            await asyncio.sleep(wait)
+                        else:
+                            print(f"CoinGecko error for {cg_id}: {resp.status}")
+                            break
+            except Exception as mc_e:
+                print(f"Market Cap fetch error for {raw_symbol}: {mc_e}")
+                retry_count += 1
+                await asyncio.sleep(3)
+
+        # DEV_MODE mock if 0 or always if true (after loop; no attribute err)
+        if cfg.DEV_MODE:
+            mocks = {'bitcoin': 2106970423895, 'ethereum': 455238904066, 'solana': 98335420546, 'bnb': 85000000000, 'xrp': 28000000000, 'dogecoin': 23000000000, 'sui': 8667709737, 'astar': 500000000, 'pax-gold': 500000000}
+            market_cap = mocks.get(cg_id, market_cap) or 0
+            print(f"DEV_MODE mock Market Cap for {base}: ${market_cap:,.0f}")
         
         # L/S tf-specific (send_public_request)
         global_ls_tf = 'N/A'
@@ -152,7 +188,7 @@ async def fetch_metrics(exchange, ccxt_symbol, raw_symbol, tf='5m'):
         oi_changes = {}
         timeframes = ['5m', '15m', '30m', '1h']
         for tfi in timeframes:
-            _, oi_hist_resp = send_public_request("/futures/data/openInterestHist", {"symbol": raw_symbol, "period": tfi, "limit": 30})
+            _, oi_hist_resp = send_public_request("/futures/data/openInterestHist", {"symbol": raw_symbol, "period": tfi, "limit": 50})
             oi_change_pct = 'N/A'
             if oi_hist_resp and len(oi_hist_resp) >= 2:
                 current_oi = float(oi_hist_resp[0].get('openInterest', 0))

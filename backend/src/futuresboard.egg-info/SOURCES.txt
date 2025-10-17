@@ -27,6 +27,7 @@ src/futuresboard/config.py
 src/futuresboard/db.py
 src/futuresboard/metrics.py
 src/futuresboard/scraper.py
+src/futuresboard/tempCodeRunnerFile.py
 src/futuresboard/utils.py
 src/futuresboard/version.py
 src/futuresboard/wsgi.py

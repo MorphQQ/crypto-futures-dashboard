@@ -4,6 +4,7 @@ import json
 import logging
 import pathlib
 import sqlite3
+from logging.handlers import RotatingFileHandler
 
 import argparse
 import os
@@ -17,6 +18,21 @@ from futuresboard import blueprint
 from futuresboard import db
 from futuresboard.config import Config
 from .db import get_latest_metrics, get_metrics_by_symbol  # For history routes (moved early, no cycle)
+
+# Logging setup (Phase 1: app.log 10MB x3 rotate)
+log_dir = os.path.join(os.path.dirname(__file__), '..', 'logs')  # backend/logs
+os.makedirs(log_dir, exist_ok=True)
+file_handler = RotatingFileHandler(os.path.join(log_dir, 'app.log'), maxBytes=10*1024*1024, backupCount=3)
+file_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
+file_handler.setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
+logger.addHandler(file_handler)
+logger.setLevel(logging.INFO)
+
+# Redirect print to log (optional; uncomment)
+# def print(*args, **kwargs): logger.info(' '.join(map(str, args)))
+
+print("Logging setup complete - check backend/logs/app.log")  # Test entry
 
 socketio = None  # Module-level export for scraper import (set in init_app)
 
