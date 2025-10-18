@@ -65,6 +65,7 @@ class Metric(Base):
     ls_delta_pct = Column(Float, nullable=True)  # New: Rolling % change LS (P2)
     cvd = Column(Float, nullable=True)  # Tease: Cum Vol Delta from klines (P2)
     z_ls = Column(Float, nullable=True)  # New: Z-score LS (pre-calc)
+    z_score = Column(Float, nullable=True)  # New: Bind z_ls to z_score for gen_tracker
     imbalance = Column(Float, nullable=True)  # Stub: (bid-ask)/mid *100 (P2)
     funding = Column(Float, nullable=True)  # Stub: Funding rate % (P2)
     rsi = Column(Float, nullable=True)  # New: RSI 14-period tease (P3)
@@ -143,6 +144,7 @@ def create_metrics_table():
             ls_delta_pct REAL,
             cvd REAL,
             z_ls REAL,
+            z_score REAL,  # New: Bind z_ls to z_score
             imbalance REAL,
             funding REAL,
             rsi REAL,
@@ -152,7 +154,7 @@ def create_metrics_table():
     """)
     print("Metrics table created/verified OK (raw SQL)")
     
-    # ALTER for new/missing cols (idempotent; full list incl timeframe)
+    # ALTER for new/missing cols (idempotent; full list incl timeframe/z_score)
     db = get_db()
     cur = db.cursor()
     all_columns = [
@@ -163,7 +165,7 @@ def create_metrics_table():
         'price_change_5m_pct', 'price_change_15m_pct', 'price_change_30m_pct', 'price_change_1h_pct',
         'global_ls_5m', 'global_ls_15m', 'global_ls_30m', 'global_ls_1h',
         'long_account_pct', 'short_account_pct', 'top_ls', 'top_ls_accounts', 'top_ls_positions',
-        'ls_delta_pct', 'cvd', 'z_ls', 'imbalance', 'funding', 'rsi'
+        'ls_delta_pct', 'cvd', 'z_ls', 'z_score', 'imbalance', 'funding', 'rsi'  # Added z_score
     ]
     for col in all_columns:
         try:
@@ -262,12 +264,15 @@ def save_metrics(metrics, timeframe='5m'):
             else:
                 metric.z_ls = 0.0
 
+            # Bind z_ls to z_score (new)
+            metric.z_score = metric.z_ls  # Real Z from calc
+
             # Full guards: Finite + Z<10 (key cols + new)
-            guard_cols = ['oi_abs_usd', 'global_ls_5m', 'top_ls', 'price', 'oi_delta_pct', 'ls_delta_pct', 'cvd', 'z_ls', 'imbalance', 'funding', 'rsi']  # +rsi
+            guard_cols = ['oi_abs_usd', 'global_ls_5m', 'top_ls', 'price', 'oi_delta_pct', 'ls_delta_pct', 'cvd', 'z_ls', 'z_score', 'imbalance', 'funding', 'rsi']  # +z_score
             dropped = False
             for col in guard_cols:
                 val = getattr(metric, col, None)
-                if val is not None and (not np.isfinite(val) or (col == 'z_ls' and abs(val) >= 10)):
+                if val is not None and (not np.isfinite(val) or (col in ['z_ls', 'z_score'] and abs(val) >= 10)):
                     logger.warning(f"Guard reject {m['symbol']}/{timeframe} {col}: {val} (inf/NaN/Z>10)")
                     dropped = True
                     break
@@ -292,7 +297,7 @@ def save_metrics(metrics, timeframe='5m'):
     finally:
         session.close()
         if saved_count > 0:  # Explicit
-            print(f"SAVED {saved_count}/20 w/ finite guards/deltas/Z tf={timeframe} (e.g., Z mean={np.mean([getattr(m, 'z_ls', 0) for m in session.query(Metric).filter(Metric.timeframe == timeframe).limit(20).all()]):.2f})")  # Console visible
+            print(f"SAVED {saved_count}/20 w/ finite guards/deltas/Z tf={timeframe} (e.g., Z mean={np.mean([m.z_ls for m in session.query(Metric).filter(Metric.timeframe == timeframe).limit(20).all()]):.2f})")  # Console visible
             logger.info(f"Bulk saved {saved_count} w/ deltas/CVD/Z tf={timeframe}; DB total tf={session.query(Metric).filter(Metric.timeframe == timeframe).count()}")
         else:
             print(f"NO SAVES tf={timeframe} (all dropped? guards/err)")
