@@ -16,6 +16,14 @@ except sqlite3.OperationalError as e:
   if 'duplicate column name' not in str(e).lower():  
     raise e  
   print('z_score already exists')  
+# Add vol_usd if missing (for P3 weighted OI tease)
+try:
+  con.execute("ALTER TABLE metrics ADD COLUMN vol_usd REAL DEFAULT 0.0")
+  print('vol_usd added')
+except sqlite3.OperationalError as e:
+  if 'duplicate column name' not in str(e).lower():
+    raise e
+  print('vol_usd already exists')
 # Update NULL tf to '5m'  
 con.execute("UPDATE metrics SET timeframe = '5m' WHERE timeframe IS NULL OR timeframe = ''")  
 con.commit()  

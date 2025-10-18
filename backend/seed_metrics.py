@@ -63,7 +63,8 @@ def generate_mock(tf='5m'):
             'rsi': np.random.uniform(30, 70),  # Stub  
             'timestamp': datetime.now(timezone.utc).timestamp() + random.randint(0, 60),  # Jitter s  
             'z_score': z_ls,  # Set real Z from calc (not default 0.0)  
-            'timeframe': tf  # Bind tf='5m'  
+            'timeframe': tf,  # Bind tf='5m'  
+            'vol_usd': base['volume_24h'] * jitter  # Proxy vol from 24h volume (finite >0 for weighted P3)
         }  
         # Tf variants (base global_ls for all tfs in JSON; no pre-calc)  
         for t in ['5m', '15m', '30m', '1h']:  
