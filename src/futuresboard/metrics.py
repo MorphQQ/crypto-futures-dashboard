@@ -11,6 +11,7 @@ import os
 import time
 import random  # For mock rand
 import numpy as np
+import pandas as pd  # New: For DataFrame weighted calc (P3)
 
 
 metrics_bp = Blueprint('metrics', __name__, url_prefix='/api')
@@ -107,14 +108,18 @@ async def get_all_metrics(tf='5m', exch='binance', limit=20, offset=0):
                 else:
                     raise
             await asyncio.sleep(0.5)  # Rate limit
-        # Weighted global if 'global' exch (Roadmap Phase 3)
-        if exch == 'global':
-            total_oi, total_vol = 0, 0
-            for r in results:
-                vol = r['ticker']['quoteVolume']
-                total_oi += r['oi_abs_usd'] * vol
-                total_vol += vol
-            for r in results: r['global_oi_usd'] = total_oi / total_vol if total_vol else 0
+        # Weighted global OI (P3: Σ(OI·vol)/Σ(vol); Bybit tease if exch=='bybit')
+        if exch == 'bybit':
+            print(f"Bybit fallback WS fstream for tf={tf}")
+        df = pd.DataFrame(results)  # From your results list
+        if len(df) > 0 and 'vol_usd' in df.columns and df['vol_usd'].sum() > 0:
+            weights = df['vol_usd'] / df['vol_usd'].sum()
+            weighted_oi = np.average(df['oi_abs_usd'], weights=weights)
+            print(f"Weighted Global OI {tf}: ${weighted_oi / 1e9:.2f}B ({exch} weights)")
+            # Add to each metric or global (for /api/metrics JSON)
+            for i, row in df.iterrows():
+                results[i]['weighted_oi_usd'] = weighted_oi
+        # Existing return results (paginated/Content-Range)
         return results
     finally:
         await exchange.close()
@@ -158,7 +163,8 @@ async def fetch_metrics(exchange, ccxt_symbol, raw_symbol, tf='5m'):
             'imbalance': mock['imb'],
             'funding': mock['fund'],
             'timestamp': datetime.now().timestamp(),
-            'timeframe': tf # New: Bind for WS filter/DB query (even if DB has col)
+            'timeframe': tf,  # New: Bind for WS filter/DB query (even if DB has col)
+            'vol_usd': random.uniform(1e9,5e9)  # Synth vol for weighted (P3)
         }
         # Alert stub
         if result[f'Global_LS_{tf}'] > 2.0:
@@ -317,7 +323,8 @@ async def fetch_metrics(exchange, ccxt_symbol, raw_symbol, tf='5m'):
             'cvd': cvd,
             'imbalance': 0.0,  # Stub; real from /fapi/v1/depth P3
             'funding': 0.0,  # Stub; real from /fapi/v1/premiumIndex P3
-            'timestamp': datetime.now().timestamp()
+            'timestamp': datetime.now().timestamp(),
+            'vol_usd': volume_24h  # New: Proxy vol from quoteVolume for weighted P3
         }
         
         # Alert stub (Phase 3 toast/beep if >2)
