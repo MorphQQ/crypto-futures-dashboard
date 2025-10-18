@@ -14,10 +14,12 @@ from flask import Flask, redirect, request, render_template, current_app, jsonif
 from flask_cors import CORS  # For frontend fetches
 from flask_socketio import SocketIO  # WS for Phase 1 refreshes
 
-from futuresboard import blueprint
-from futuresboard import db
-from futuresboard.config import Config
-from .db import get_latest_metrics, get_metrics_by_symbol, Metric  # + Metric for cols serialize
+# Relative imports (fix absolute fail; from .)
+from . import blueprint
+from . import db
+from .config import Config
+from .db import get_latest_metrics, get_metrics_by_symbol  # Relative: No Metric for now (stub if needed)
+from .metrics import metrics_bp  # Relative
 
 # Logging setup (Phase 1: app.log 10MB x3 rotate)
 log_dir = os.path.join(os.path.dirname(__file__), '..', 'logs')  # backend/logs
@@ -85,7 +87,7 @@ def init_app(config: Config | None = None):
         # Clean JSON serialize (cols only; no '_sa_instance_state')
         serialized = []
         for row in data:
-            row_dict = {col.name: getattr(row, col.name) for col in Metric.__table__.columns}
+            row_dict = {col.name: getattr(row, col.name) for col in row.__table__.columns}
             row_dict['time'] = row.timestamp.timestamp() if row.timestamp else 0  # Unix s fallback
             serialized.append(row_dict)
         return jsonify(serialized)  # [ {'time': 1760764607.87, 'price': 69163.63, 'global_ls_5m': 1.82, ...} ]
@@ -98,7 +100,7 @@ def init_app(config: Config | None = None):
         # Clean JSON serialize (cols only; no '_sa_instance_state')
         serialized = []
         for row in data:
-            row_dict = {col.name: getattr(row, col.name) for col in Metric.__table__.columns}
+            row_dict = {col.name: getattr(row, col.name) for col in row.__table__.columns}
             row_dict['time'] = row.timestamp.timestamp() if row.timestamp else 0  # Unix s fallback
             serialized.append(row_dict)
         return jsonify(serialized)  # [ {'time': 1760764607.87, 'price': 69163.63, 'global_ls_5m': 1.82, ...} ]
@@ -108,7 +110,7 @@ def init_app(config: Config | None = None):
         #print("Health route registered at /health")  # Debug: Confirms def executes
         try:
             # DB ping via config (aligns pydantic resolve config/futures.db)
-            from .config import Config
+            from .config import Config  # Relative
             cfg = Config.from_config_dir(pathlib.Path.cwd())
             db_path = str(cfg.DATABASE)
             conn = sqlite3.connect(db_path)
@@ -120,7 +122,7 @@ def init_app(config: Config | None = None):
             return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
         
     # Lazy metrics import + route add (breaks cycle: post-app init)
-    from .metrics import add_metrics_route, metrics_bp  # Lazy: Import here + metrics_bp for register
+    from .metrics import add_metrics_route, metrics_bp  # Relative: Import here + metrics_bp for register
     add_metrics_route(app)
 
     # Register metrics_bp with prefix (for /api/metrics, /api/health, /api/<symbol>/history)
@@ -131,8 +133,8 @@ def init_app(config: Config | None = None):
 
     # Lazy scraper import + auto_scrape (breaks cycle: after app setup)
     if not config.DISABLE_AUTO_SCRAPE:
-        import futuresboard.scraper  # Lazy: Import here (post-app init)
-        futuresboard.scraper.auto_scrape(app)
+        from . import scraper  # Relative: Import here (post-app init)
+        scraper.auto_scrape(app)
 
     app.logger.setLevel(logging.INFO)
     #print(app.url_map)  # Debug: Show all routes (expect /health GET)
@@ -144,6 +146,10 @@ def main():
     parser = argparse.ArgumentParser(description='Crypto Futures Dashboard (Modified v0.3.3)')
     parser.add_argument('--port', type=int, default=5000, help='Port to run on (default: 5000)')
     args = parser.parse_args()
+    
+    # Sys.path hack for relative imports in script mode (Pylance/VSCode resolves)
+    from sys import path
+    path.append(os.path.dirname(os.path.dirname(__file__)))  # Add src parent (backend)
     
     # Init app (uses config.json + .env overrides)
     print("Initializing app...")  # Debug: Aligns "Importing..." from init_app
