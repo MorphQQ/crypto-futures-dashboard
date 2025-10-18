@@ -4,7 +4,7 @@ import sqlite3
 import pandas as pd
 import numpy as np
 con = sqlite3.connect('../backend/config/futures.db')
-df = pd.read_sql("SELECT oi_abs_usd, vol_usd FROM metrics LIMIT 20", con)  # Tease weighted
+df = pd.read_sql("SELECT oi_abs_usd, vol_usd FROM metrics ORDER BY timestamp DESC LIMIT 20", con)  # Recent rows for weighted
 if len(df) == 0:
     print("## Auto-KPI Update (No Data)\n| Weighted OI | Current |\n|-------------|---------|\n| $0.00B | No rows |")
 elif pd.isna(df['vol_usd']).all() or df['vol_usd'].sum() == 0:
