@@ -24,6 +24,8 @@ Metrics Hierarchy (Evolution per Phase)
 Tremor Template Integration
 P1.5: Dashboard + KPI Cards (globals) + Table (pairs).
 P2: Tabs (tf) + Modal (lines) + Export dropdown.
+### Updated roadmap.md (With Git Hooks Addition)
+Added row to Execution Matrix for enhancement (Diff 1, Impact 3⭐, 1hr est; ties to PS function). Drop via notepad.
 P3: Card Grid (exch compare) + AreaChart (overlays) + Toasts (alerts).
 P4: Dialog + Slider (replay).
 
