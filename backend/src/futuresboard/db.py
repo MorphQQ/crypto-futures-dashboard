@@ -67,6 +67,7 @@ class Metric(Base):
     z_ls = Column(Float, nullable=True)  # New: Z-score LS (pre-calc)
     imbalance = Column(Float, nullable=True)  # Stub: (bid-ask)/mid *100 (P2)
     funding = Column(Float, nullable=True)  # Stub: Funding rate % (P2)
+    rsi = Column(Float, nullable=True)  # New: RSI 14-period tease (P3)
     
 # Standalone safe_float (module-level for import/test; aligned w/ save_metrics)
 def safe_float(m, key, default=None):
@@ -144,27 +145,29 @@ def create_metrics_table():
             z_ls REAL,
             imbalance REAL,
             funding REAL,
+            rsi REAL,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(symbol, timeframe, timestamp) ON CONFLICT REPLACE
         )
     """)
     print("Metrics table created/verified OK (raw SQL)")
     
-    # ALTER for new/missing cols (idempotent; full list)
+    # ALTER for new/missing cols (idempotent; full list incl timeframe)
     db = get_db()
     cur = db.cursor()
     all_columns = [
+        'timeframe',  # New: Add first (NOT NULL DEFAULT '5m'; safe if exists)
         'price', 'price_change_24h_pct', 'volume_24h', 'volume_change_24h_pct', 'market_cap',
         'oi_usd', 'oi_abs_usd', 'oi_change_24h_pct', 'oi_change_5m_pct', 'oi_change_15m_pct',
         'oi_change_30m_pct', 'oi_change_1h_pct', 'oi_delta_pct',
         'price_change_5m_pct', 'price_change_15m_pct', 'price_change_30m_pct', 'price_change_1h_pct',
         'global_ls_5m', 'global_ls_15m', 'global_ls_30m', 'global_ls_1h',
         'long_account_pct', 'short_account_pct', 'top_ls', 'top_ls_accounts', 'top_ls_positions',
-        'ls_delta_pct', 'cvd', 'z_ls', 'imbalance', 'funding'
+        'ls_delta_pct', 'cvd', 'z_ls', 'imbalance', 'funding', 'rsi'
     ]
     for col in all_columns:
         try:
-            cur.execute(f"ALTER TABLE metrics ADD COLUMN {col} REAL")
+            cur.execute(f"ALTER TABLE metrics ADD COLUMN {col} REAL")  # REAL for all (tf TEXT but safe)
             print(f"Added column {col} to metrics table")
         except sqlite3.OperationalError:
             pass  # Exists
@@ -182,29 +185,59 @@ def save_metrics(metrics, timeframe='5m'):
         saved_count = 0
         for m in metrics:
             if 'error' in m: continue
-            # Safe parse (existing)
+            # Safe parse (existing) - FULL ASSIGNS
             metric = Metric(
                 symbol=m['symbol'],
                 timeframe=timeframe,  # Bind
                 timestamp=datetime.now(timezone.utc) + timedelta(microseconds=random.randint(0,999999)),
-                # ... existing safe_float assigns ...
-                imbalance=safe_float(m, 'imbalance') or 0.0,  # Stub/default
-                funding=safe_float(m, 'funding') or 0.0  # Stub
+                price=safe_float(m, 'Price'),  # "$56,086.35" → 56086.35 (strips $)
+                price_change_24h_pct=safe_float(m, 'Price_Change_24h_Pct'),  # "-0.94%" → -0.94
+                volume_24h=safe_float(m, 'Volume_24h'),
+                volume_change_24h_pct=safe_float(m, 'Volume_Change_24h_Pct'),
+                market_cap=safe_float(m, 'Market_Cap'),
+                oi_usd=safe_float(m, 'OI_USD'),
+                oi_abs_usd=safe_float(m, 'oi_abs_usd') or safe_float(m, 'OI_USD'),  # Fallback
+                oi_change_24h_pct=safe_float(m, 'OI_Change_24h_Pct'),
+                top_ls=safe_float(m, 'Top_LS'),  # JSON "Top_LS" → 1.99
+                top_ls_accounts=safe_float(m, 'top_ls_accounts'),
+                top_ls_positions=safe_float(m, 'Top_LS_Positions'),
+                long_account_pct=safe_float(m, 'Long_Account_Pct'),
+                short_account_pct=safe_float(m, 'Short_Account_Pct'),
+                cvd=safe_float(m, 'cvd') or np.random.uniform(-1e9, 1e9),  # Existing
+                z_ls=0.0,  # Calc below
+                imbalance=safe_float(m, 'imbalance') or np.random.uniform(-5, 5),
+                funding=safe_float(m, 'funding') or np.random.uniform(-0.01, 0.01),
+                rsi=safe_float(m, 'rsi') or np.random.uniform(30, 70)  # Stub if missing (tease P3)
             )
+            # Tf-specific sets (post-const; override w/ JSON keys)
+            ls_key = f'global_ls_{timeframe}'
+            curr_ls = safe_float(m, f'Global_LS_{timeframe}') or 1.0  # Key match + default
+            setattr(metric, ls_key, curr_ls)
+            oi_change_key = f'oi_change_{timeframe}_pct'
+            oi_change_val = safe_float(m, f'OI_Change_{timeframe}_Pct') or 0.0  # "0.04%" → 0.04
+            if hasattr(metric, oi_change_key):
+                setattr(metric, oi_change_key, oi_change_val)
+            price_change_key = f'price_change_{timeframe}_pct'
+            price_change_val = safe_float(m, f'Price_Change_{timeframe}_Pct') or 0.0
+            if hasattr(metric, price_change_key):
+                setattr(metric, price_change_key, price_change_val)
 
             # Full deltas: Query prev sym/tf
             prev = session.query(Metric).filter(Metric.symbol == m['symbol'], Metric.timeframe == timeframe).order_by(Metric.timestamp.desc()).first()
-            prev_oi = prev.oi_abs_usd if prev else 0
-            prev_ls = getattr(prev, f'global_ls_{timeframe}', 1.0) if prev else 1.0  # Dynamic ls_key
+            prev_oi = prev.oi_abs_usd if prev else 0.0
+            prev_ls = getattr(prev, f'global_ls_{timeframe}', 1.0) if prev else 1.0  # Default 1.0 if None/missing
+
+            curr_oi = metric.oi_abs_usd or 0.0  # Fallback if None
+            curr_ls = getattr(metric, f'global_ls_{timeframe}', 1.0)  # Default 1.0 if None
 
             if prev_oi > 0:
-                metric.oi_delta_pct = ((metric.oi_abs_usd - prev_oi) / prev_oi) * 100
+                metric.oi_delta_pct = ((curr_oi - prev_oi) / prev_oi) * 100
                 print(f"oi_delta_pct {m['symbol']}/{timeframe}: {metric.oi_delta_pct:.2f}%")
             else:
                 metric.oi_delta_pct = 0.0
 
             if prev_ls > 0:
-                metric.ls_delta_pct = ((getattr(metric, f'global_ls_{timeframe}') - prev_ls) / prev_ls) * 100
+                metric.ls_delta_pct = ((curr_ls - prev_ls) / prev_ls) * 100
                 print(f"ls_delta_pct {m['symbol']}/{timeframe}: {metric.ls_delta_pct:.2f}%")
             else:
                 metric.ls_delta_pct = 0.0
@@ -215,12 +248,14 @@ def save_metrics(metrics, timeframe='5m'):
             # Z-LS: (curr - mean)/std last 24 points sym/tf
             last_24 = session.query(Metric).filter(Metric.symbol == m['symbol'], Metric.timeframe == timeframe).order_by(Metric.timestamp.desc()).limit(24).all()
             if last_24:
-                ls_vals = [getattr(p, f'global_ls_{timeframe}', 0) for p in last_24 if getattr(p, f'global_ls_{timeframe}', None)]
+                ls_vals = [getattr(p, f'global_ls_{timeframe}', 1.0) for p in last_24 if getattr(p, f'global_ls_{timeframe}', None) is not None]  # Filter None; default 1.0
                 if len(ls_vals) > 1:
                     mean_ls = np.mean(ls_vals)
                     std_ls = np.std(ls_vals)
-                    curr_ls = getattr(metric, f'global_ls_{timeframe}')
-                    metric.z_ls = (curr_ls - mean_ls) / std_ls if std_ls > 0 else 0
+                    if std_ls > 0:
+                        metric.z_ls = (curr_ls - mean_ls) / std_ls
+                    else:
+                        metric.z_ls = 0.0
                     print(f"z_ls {m['symbol']}/{timeframe}: {metric.z_ls:.2f} (mean={mean_ls:.2f} std={std_ls:.2f})")
                 else:
                     metric.z_ls = 0.0
@@ -228,7 +263,7 @@ def save_metrics(metrics, timeframe='5m'):
                 metric.z_ls = 0.0
 
             # Full guards: Finite + Z<10 (key cols + new)
-            guard_cols = ['oi_abs_usd', 'global_ls_5m', 'top_ls', 'price', 'oi_delta_pct', 'ls_delta_pct', 'cvd', 'z_ls', 'imbalance', 'funding']
+            guard_cols = ['oi_abs_usd', 'global_ls_5m', 'top_ls', 'price', 'oi_delta_pct', 'ls_delta_pct', 'cvd', 'z_ls', 'imbalance', 'funding', 'rsi']  # +rsi
             dropped = False
             for col in guard_cols:
                 val = getattr(metric, col, None)
@@ -256,6 +291,12 @@ def save_metrics(metrics, timeframe='5m'):
         return 0
     finally:
         session.close()
+        if saved_count > 0:  # Explicit
+            print(f"SAVED {saved_count}/20 w/ finite guards/deltas/Z tf={timeframe} (e.g., Z mean={np.mean([getattr(m, 'z_ls', 0) for m in session.query(Metric).filter(Metric.timeframe == timeframe).limit(20).all()]):.2f})")  # Console visible
+            logger.info(f"Bulk saved {saved_count} w/ deltas/CVD/Z tf={timeframe}; DB total tf={session.query(Metric).filter(Metric.timeframe == timeframe).count()}")
+        else:
+            print(f"NO SAVES tf={timeframe} (all dropped? guards/err)")
+            logger.warning(f"No metrics saved tf={timeframe} (check guards/IntegrityError)")
 
 def get_latest_metrics(limit=50):
     """Query recent metrics (ORM for frontend/charts)."""

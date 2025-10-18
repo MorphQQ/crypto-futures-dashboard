@@ -17,7 +17,7 @@ from flask_socketio import SocketIO  # WS for Phase 1 refreshes
 from futuresboard import blueprint
 from futuresboard import db
 from futuresboard.config import Config
-from .db import get_latest_metrics, get_metrics_by_symbol  # For history routes (moved early, no cycle)
+from .db import get_latest_metrics, get_metrics_by_symbol, Metric  # + Metric for cols serialize
 
 # Logging setup (Phase 1: app.log 10MB x3 rotate)
 log_dir = os.path.join(os.path.dirname(__file__), '..', 'logs')  # backend/logs
@@ -82,13 +82,26 @@ def init_app(config: Config | None = None):
     def api_metrics_history():
         limit = request.args.get('limit', 50, type=int)
         data = get_latest_metrics(limit)
-        return jsonify([dict(row) for row in data])  # Row to dict for JSON
+        # Clean JSON serialize (cols only; no '_sa_instance_state')
+        serialized = []
+        for row in data:
+            row_dict = {col.name: getattr(row, col.name) for col in Metric.__table__.columns}
+            row_dict['time'] = row.timestamp.timestamp() if row.timestamp else 0  # Unix s fallback
+            serialized.append(row_dict)
+        return jsonify(serialized)  # [ {'time': 1760764607.87, 'price': 69163.63, 'global_ls_5m': 1.82, ...} ]
 
     @app.route('/api/metrics/<symbol>/history')
     def api_symbol_history(symbol):
-        limit = request.args.get('limit', 24, type=int)  # Default hourly
-        data = get_metrics_by_symbol(symbol, limit)
-        return jsonify([dict(row) for row in data])
+        tf = request.args.get('tf', '5m')  # Default '5m' string (no 0)
+        limit = request.args.get('limit', 24, type=int)  # Hourly default
+        data = get_metrics_by_symbol(symbol, limit)  # List[Metric]
+        # Clean JSON serialize (cols only; no '_sa_instance_state')
+        serialized = []
+        for row in data:
+            row_dict = {col.name: getattr(row, col.name) for col in Metric.__table__.columns}
+            row_dict['time'] = row.timestamp.timestamp() if row.timestamp else 0  # Unix s fallback
+            serialized.append(row_dict)
+        return jsonify(serialized)  # [ {'time': 1760764607.87, 'price': 69163.63, 'global_ls_5m': 1.82, ...} ]
 
     @app.route('/health', methods=['GET'])
     def health_check():

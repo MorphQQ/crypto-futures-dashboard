@@ -10,6 +10,8 @@ import pathlib
 import os
 import time
 import random  # For mock rand
+import numpy as np
+
 
 metrics_bp = Blueprint('metrics', __name__, url_prefix='/api')
 
@@ -155,7 +157,8 @@ async def fetch_metrics(exchange, ccxt_symbol, raw_symbol, tf='5m'):
             'z_ls': mock['z'],
             'imbalance': mock['imb'],
             'funding': mock['fund'],
-            'timestamp': datetime.now().timestamp()
+            'timestamp': datetime.now().timestamp(),
+            'timeframe': tf # New: Bind for WS filter/DB query (even if DB has col)
         }
         # Alert stub
         if result[f'Global_LS_{tf}'] > 2.0:
@@ -197,7 +200,7 @@ async def fetch_metrics(exchange, ccxt_symbol, raw_symbol, tf='5m'):
                         else:
                             print(f"CoinGecko error for {cg_id}: {resp.status}")
                             break
-            except Exception as mc_e:
+            except Exception as mc_e:   
                 print(f"Market Cap fetch error for {raw_symbol}: {mc_e}")
                 retry_count += 1
                 await asyncio.sleep(3)
