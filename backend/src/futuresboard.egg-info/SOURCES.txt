@@ -3,6 +3,7 @@
 README.md
 add_columns.py
 alembic.ini
+alter_db.py
 futures.db
 pyproject.toml
 requirements.txt
@@ -17,6 +18,7 @@ alembic/versions/__pycache__/19ed178682e9_add_oi_abs_usd_delta_cols.cpython-313.
 config/config.json
 config/config.json.example
 config/futures.db
+config/futures_backup_2025-10-18.db
 logs/app.log
 src/futures.db
 src/futuresboard/__init__.py
@@ -62,3 +64,4 @@ src/futuresboard/templates/home.html
 src/futuresboard/templates/positions.html
 src/futuresboard/templates/projection.html
 src/logs/app.log
+tests/test_metrics.py

@@ -15,8 +15,12 @@ from pydantic import validator
 
 from dotenv import load_dotenv
 import os
+import logging  # Added for conditional logging
 
 load_dotenv()  # Pulls .env
+
+# Module-level flag (once-print across imports/calls)
+_config_printed = False
 
 class NavbarBG(enum.Enum):
     BG_DARK = "bg-dark"
@@ -154,7 +158,13 @@ class Config(BaseModel):
         # Add: LOG_LEVEL from .env
         config_dict["LOG_LEVEL"] = os.getenv("LOG_LEVEL", "INFO").upper()
 
-        # Debug: Print post-override (suppress spam; uncomment if needed)
-        print(f"Config loaded: DEV_MODE={config_dict['DEV_MODE']}, LOG_LEVEL={config_dict['LOG_LEVEL']}, INTERVAL={config_dict['AUTO_SCRAPE_INTERVAL']}s")
+        # Conditional log (DEBUG only + once-flag; no spam @ INFO)
+        global _config_printed
+        if not _config_printed and config_dict.get("LOG_LEVEL", "INFO").upper() == "DEBUG":
+            logging.basicConfig(level=logging.DEBUG)  # If not setup
+            logging.info(f"Config loaded: DEV_MODE={config_dict['DEV_MODE']}, LOG_LEVEL={config_dict['LOG_LEVEL']}, INTERVAL={config_dict['AUTO_SCRAPE_INTERVAL']}s")
+            _config_printed = True
+        elif not _config_printed:  # Silent @ INFO (or minimal if want)
+            _config_printed = True  # Flag set no-op
 
         return cls.parse_obj(config_dict)

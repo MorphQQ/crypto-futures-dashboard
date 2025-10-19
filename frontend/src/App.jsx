@@ -52,7 +52,8 @@ function App() {
           Global_LS_5m: safeFloat(m.Global_LS_5m),
           Global_LS_15m: safeFloat(m.Global_LS_15m),
           Global_LS_30m: safeFloat(m.Global_LS_30m),
-          Global_LS_1h: safeFloat(m.Global_LS_1h)
+          Global_LS_1h: safeFloat(m.Global_LS_1h),
+          Market_Cap: m.Market_Cap || `$${safeFloat(m.Market_Cap || 0).toLocaleString()}`  // New: Fmt $1.2T
         }));
         setMetrics(parsedMetrics);  // Used
         // Cache per-tf
@@ -71,14 +72,53 @@ function App() {
     fetchMetrics();
   }, [activeTab]);  // Dep tf switch
 
+  // Poll fallback for fast initial pop if empty (10s axios if length<5; fix deps no loop)
+  useEffect(() => {
+    if (metrics.length < 5) {  // Low? Poll on mount/switch
+      const interval = setInterval(async () => {
+        if (metrics.length < 5) {  // Re-check inside
+          try {
+            const response = await axios.get(`http://localhost:5000/api/metrics?tf=${activeTab}`);
+            const parsedMetrics = response.data.map(m => ({
+              ...m,
+              oi_abs_usd: safeFloat(m.oi_abs_usd),
+              formatted_oi: safeFloat(m.oi_abs_usd).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }),
+              oi_delta_pct: safeFloat(m.oi_delta_pct),
+              ls_delta_pct: safeFloat(m.ls_delta_pct),
+              z_ls: safeFloat(m.z_ls),
+              cvd: safeFloat(m.cvd),
+              imbalance: safeFloat(m.imbalance),
+              funding: safeFloat(m.funding),
+              rsi: safeFloat(m.rsi) || 50,
+              price: safeFloat(m.price || m.Price),
+              top_ls: safeFloat(m.Top_LS),
+              [`Global_LS_${activeTab}`]: safeFloat(m[`Global_LS_${activeTab}`]),
+              Global_LS_5m: safeFloat(m.Global_LS_5m),
+              Global_LS_15m: safeFloat(m.Global_LS_15m),
+              Global_LS_30m: safeFloat(m.Global_LS_30m),
+              Global_LS_1h: safeFloat(m.Global_LS_1h),
+              Market_Cap: m.Market_Cap || `$${safeFloat(m.Market_Cap || 0).toLocaleString()}`
+            }));
+            setMetrics(parsedMetrics);
+            localforage.setItem(`metrics_${activeTab}`, parsedMetrics);
+            console.log('Poll fallback hit:', parsedMetrics.length, 'pairs tf:', activeTab);
+          } catch (err) {
+            console.error('Poll fetch err:', err.response?.status || err.message);
+          }
+        }
+      }, 10000);  // 10s poll if low
+      return () => clearInterval(interval);
+    }
+  }, [activeTab]);  // Fix: Only tf; no length→no re-poll loop
+
   // WS bind
   useEffect(() => {
     socket.on('connect', () => console.log('WS connected (EIO=4)'));
     socket.on('metrics_update', (update) => {
       const rawMetrics = update.data || update;
       console.log('WS update:', rawMetrics.length, 'pairs sample:', rawMetrics.slice(0,1));
-      // Filter/override by activeTab (match emit tf or client filter tease)
-      const tfMetrics = rawMetrics.filter(m => m.timeframe === activeTab || m[`Global_LS_${activeTab}`]).map(m => ({  // Fallback: if no timeframe, use tf-specific LS key presence
+      // Filter by activeTab (timeframe or LS key presence fallback)
+      const tfMetrics = rawMetrics.filter(m => m.timeframe === activeTab || m[`Global_LS_${activeTab}`]).map(m => ({  // Fallback LS key if no timeframe bind
         ...m,
         // Parse as fetch
         oi_abs_usd: safeFloat(m.oi_abs_usd),
@@ -89,18 +129,21 @@ function App() {
         cvd: safeFloat(m.cvd),
         imbalance: safeFloat(m.imbalance),
         funding: safeFloat(m.funding),
-        rsi: safeFloat(m.rsi) || 50,  // Stub
+        rsi: safeFloat(m.rsi) || 50,
         price: safeFloat(m.price || m.Price),
-        top_ls: safeFloat(m.Top_LS),  // Case
+        top_ls: safeFloat(m.Top_LS),
         [`Global_LS_${activeTab}`]: safeFloat(m[`Global_LS_${activeTab}`]),
         Global_LS_5m: safeFloat(m.Global_LS_5m),
         Global_LS_15m: safeFloat(m.Global_LS_15m),
         Global_LS_30m: safeFloat(m.Global_LS_30m),
-        Global_LS_1h: safeFloat(m.Global_LS_1h)
+        Global_LS_1h: safeFloat(m.Global_LS_1h),
+        Market_Cap: m.Market_Cap || `$${safeFloat(m.Market_Cap || 0).toLocaleString()}`
       }));
-      setMetrics(tfMetrics);  // Used
-      // Cache
-      localforage.setItem(`metrics_${activeTab}`, tfMetrics);
+      console.log('Filtered tfMetrics:', tfMetrics.length, 'pairs');  // Debug len
+      if (tfMetrics.length > 0) {  // Always set if >0 (no len<5 crash)
+        setMetrics(tfMetrics);
+        localforage.setItem(`metrics_${activeTab}`, tfMetrics);
+      }
     });
     return () => {
       socket.off('connect');
@@ -147,6 +190,7 @@ function App() {
     const exportData = metrics.map(m => ({
       Symbol: m.symbol,
       Price: `$${safeFloat(m.price).toFixed(2)}`,
+      'Market Cap': m.Market_Cap || 'N/A',  // New: Add col
       'OI USD': m.formatted_oi,
       'Top L/S': safeFloat(m.top_ls).toFixed(2),
       [`Global LS ${activeTab}`]: safeFloat(m[`Global_LS_${activeTab}`]).toFixed(4),
@@ -171,13 +215,14 @@ function App() {
   }
   try {
     const doc = new jsPDF();
-    const head = [['Symbol', 'Price', 'OI USD', 'Top L/S', `Global LS ${activeTab}`, 'RSI', 'CVD', 'Z-Score', 'Imbalance', 'Funding', 'OI Δ%', 'LS Δ%']];
+    const head = [['Symbol', 'Price', 'Market Cap', 'OI USD', 'Top L/S', `Global LS ${activeTab}`, 'RSI', 'CVD', 'Z-Score', 'Imbalance', 'Funding', 'OI Δ%', 'LS Δ%']];  // New: +Market Cap
     const body = metrics.map(m => {
       const safe = (v, def=0) => isNaN(Number(v)) || !isFinite(Number(v)) ? def : Number(v);  // + isFinite for inf/NaN
       const lsKey = `Global_LS_${activeTab}`;
       return [
         m.symbol,
         `$${safe(m.price).toFixed(2)}`,
+        m.Market_Cap || `$${safe(m.Market_Cap || 0).toLocaleString()}`,  // New: +col
         m.formatted_oi || `$${safe(m.oi_abs_usd).toLocaleString(undefined, {maximumFractionDigits: 2})}B`,
         safe(m.top_ls).toFixed(2),
         safe(m[lsKey]).toFixed(4),
@@ -224,6 +269,7 @@ function App() {
             <TableRow>
               <TableHeaderCell>Symbol</TableHeaderCell>
               <TableHeaderCell>Price</TableHeaderCell>
+              <TableHeaderCell>Market Cap</TableHeaderCell>  {/* New: Add col after Price */}
               <TableHeaderCell>OI (USD)</TableHeaderCell>
               <TableHeaderCell>Top L/S</TableHeaderCell>
               <TableHeaderCell>Global L/S ({activeTab})</TableHeaderCell>
@@ -252,10 +298,12 @@ function App() {
                 const zVal = safeFloat(metric.z_ls);
                 const imbVal = safeFloat(metric.imbalance);
                 const fundVal = safeFloat(metric.funding);
+                const mcapVal = safeFloat(metric.Market_Cap);  // New
                 return (
                   <TableRow key={metric.symbol} onClick={() => handleRowClick(metric.symbol)} className="cursor-pointer hover:bg-gray-700">
                     <TableCell>{metric.symbol}</TableCell>
                     <TableCell>${priceVal.toFixed(2)}</TableCell>
+                    <TableCell>{metric.Market_Cap || (isNaN(mcapVal) ? 'N/A' : `$${mcapVal.toLocaleString()}`)}</TableCell>  {/* New: Add cell after Price */}
                     <TableCell>{metric.formatted_oi}</TableCell>
                     <TableCell>{isNaN(topLsVal) ? 'N/A' : topLsVal.toFixed(2)}</TableCell>
                     <TableCell>{isNaN(lsValue) ? 'N/A' : lsValue.toFixed(4)}</TableCell>
@@ -279,7 +327,7 @@ function App() {
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={12} className="text-center text-gray-400">No metrics loaded (check fetch)</TableCell>
+                <TableCell colSpan={13} className="text-center text-gray-400">No metrics loaded (check fetch)</TableCell>  {/* Fix: colSpan 13 w/ MCap */}
               </TableRow>
             )}
           </TableBody>

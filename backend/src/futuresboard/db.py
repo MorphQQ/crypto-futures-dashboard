@@ -208,9 +208,9 @@ def save_metrics(metrics, timeframe='5m'):
                 short_account_pct=safe_float(m, 'Short_Account_Pct'),
                 cvd=safe_float(m, 'cvd') or np.random.uniform(-1e9, 1e9),  # Existing
                 z_ls=0.0,  # Calc below
-                imbalance=safe_float(m, 'imbalance') or np.random.uniform(-5, 5),
-                funding=safe_float(m, 'funding') or np.random.uniform(-0.01, 0.01),
-                rsi=safe_float(m, 'rsi') or np.random.uniform(30, 70),  # Stub if missing (tease P3)
+                imbalance=safe_float(m, 'imbalance') or 0.0,  # New: From fetch
+                funding=safe_float(m, 'funding') or 0.0,  # New: From fetch
+                rsi=safe_float(m, 'rsi') or 50.0,  # New: From calc
                 vol_usd=safe_float(m, 'vol_usd') or 0.0  # New: From seed proxy or default
             )
             # Tf-specific sets (post-const; override w/ JSON keys)
@@ -250,9 +250,9 @@ def save_metrics(metrics, timeframe='5m'):
             metric.cvd = safe_float(m, 'cvd') or np.random.uniform(-1e9, 1e9)  # $B range
 
             # Z-LS: (curr - mean)/std last 24 points sym/tf
-            last_24 = session.query(Metric).filter(Metric.symbol == m['symbol'], Metric.timeframe == timeframe).order_by(Metric.timestamp.desc()).limit(24).all()
-            if last_24:
-                ls_vals = [getattr(p, f'global_ls_{timeframe}', 1.0) for p in last_24 if getattr(p, f'global_ls_{timeframe}', None) is not None]  # Filter None; default 1.0
+            last_50 = session.query(Metric).filter(Metric.symbol == m['symbol'], Metric.timeframe == timeframe).order_by(Metric.timestamp.desc()).limit(50).all()  # Fix: 24→50 hist
+            if last_50:
+                ls_vals = [getattr(p, f'global_ls_{timeframe}', 1.0) for p in last_50 if getattr(p, f'global_ls_{timeframe}', None) is not None]
                 if len(ls_vals) > 1:
                     mean_ls = np.mean(ls_vals)
                     std_ls = np.std(ls_vals)
@@ -260,6 +260,7 @@ def save_metrics(metrics, timeframe='5m'):
                         metric.z_ls = (curr_ls - mean_ls) / std_ls
                     else:
                         metric.z_ls = 0.0
+                    metric.z_ls = max(min(metric.z_ls, 9.99), -9.99)  # Clip finite
                     print(f"z_ls {m['symbol']}/{timeframe}: {metric.z_ls:.2f} (mean={mean_ls:.2f} std={std_ls:.2f})")
                 else:
                     metric.z_ls = 0.0
@@ -305,11 +306,14 @@ def save_metrics(metrics, timeframe='5m'):
             print(f"NO SAVES tf={timeframe} (all dropped? guards/err)")
             logger.warning(f"No metrics saved tf={timeframe} (check guards/IntegrityError)")
 
-def get_latest_metrics(limit=50):
+def get_latest_metrics(limit=50, symbol=None, tf='5m'):  # Fix: +sym/tf filters
     """Query recent metrics (ORM for frontend/charts)."""
     session = Session()
     try:
-        return session.query(Metric).order_by(Metric.timestamp.desc()).limit(limit).all()
+        q = session.query(Metric).filter(Metric.timeframe == tf)
+        if symbol:
+            q = q.filter(Metric.symbol == symbol)
+        return q.order_by(Metric.timestamp.desc()).limit(limit).all()
     finally:
         session.close()
 

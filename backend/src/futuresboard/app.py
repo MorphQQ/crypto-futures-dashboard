@@ -25,21 +25,6 @@ from .config import Config
 from .db import get_latest_metrics, get_metrics_by_symbol, Metric  # Relative: Metric for cols serialize
 from .metrics import metrics_bp  # Relative
 
-# Logging setup (Phase 1: app.log 10MB x3 rotate)
-log_dir = os.path.join(os.path.dirname(__file__), '..', 'logs')  # backend/logs
-os.makedirs(log_dir, exist_ok=True)
-file_handler = RotatingFileHandler(os.path.join(log_dir, 'app.log'), maxBytes=10*1024*1024, backupCount=3)
-file_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
-file_handler.setLevel(logging.INFO)
-logger = logging.getLogger(__name__)
-logger.addHandler(file_handler)
-logger.setLevel(logging.INFO)
-
-# Redirect print to log (optional; uncomment)
-# def print(*args, **kwargs): logger.info(' '.join(map(str, args)))
-
-print("Logging setup complete - check backend/logs/app.log")  # Test entry
-
 socketio = None  # Module-level export for scraper import (set in init_app)
 
 
@@ -74,6 +59,27 @@ def init_app(config: Config | None = None):
     if 'API_BASE_URL' not in app.config:
         app.config['API_BASE_URL'] = 'https://fapi.binance.com'
     app.config['sandbox'] = app.config.get('TEST_MODE', False)  # Map: false=live, true=sandbox
+    
+    # Logging setup (post-app; propagate to child loggers scraper/metrics/db)
+    log_dir = os.path.join(os.path.dirname(__file__), '..', 'logs')  # backend/logs
+    os.makedirs(log_dir, exist_ok=True)
+    file_handler = RotatingFileHandler(os.path.join(log_dir, 'app.log'), maxBytes=10*1024*1024, backupCount=3)
+    file_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
+    file_handler.setLevel(logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.addHandler(file_handler)
+    logger.setLevel(logging.INFO)
+
+    # Root propagate (capture child loggers)
+    root_logger = logging.getLogger()
+    root_logger.addHandler(file_handler)
+    root_logger.setLevel(logging.INFO)
+    root_logger.propagate = True
+    app.logger.addHandler(file_handler)
+    app.logger.setLevel(logging.INFO)
+    app.logger.propagate = True
+
+    print("Logging setup complete - check backend/logs/app.log")  # Test entry
     
     app.url_map.strict_slashes = False
     db.init_app(app)
@@ -140,7 +146,6 @@ def init_app(config: Config | None = None):
         from . import scraper  # Relative: Import here (post-app init)
         scraper.auto_scrape(app)
 
-    app.logger.setLevel(logging.INFO)
     #print(app.url_map)  # Debug: Show all routes (expect /health GET)
     return app
 
