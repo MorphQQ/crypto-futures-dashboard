@@ -21,8 +21,8 @@ cfg_path = pathlib.Path(os.path.dirname(os.path.dirname(__file__)))  # backend r
 cfg = Config.from_config_dir(cfg_path.parent / "config")  # root/config
 SYMBOLS = cfg.SYMBOLS  # ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'] from .env/JSON
 # Safe DEV_MODE (fallback True if miss; debug)
-DEV_MODE = getattr(cfg, 'DEV_MODE', True)
-print(f"Metrics cfg DEV_MODE: {DEV_MODE} (attr OK)")
+DEV_MODE = os.getenv('DEV_MODE', 'True').lower() == 'true'
+print(f"Metrics cfg DEV_MODE: {DEV_MODE} (direct .env OK)")
 
 @metrics_bp.route('/metrics')
 def api_metrics():
@@ -197,6 +197,7 @@ async def fetch_metrics(exchange, ccxt_symbol, raw_symbol, tf='5m'):
                             data = await resp.json()
                             market_cap = data.get(cg_id, {}).get('usd_market_cap', 0)
                             print(f"Market Cap for {base} ({cg_id}): ${market_cap:,.0f}")
+                            await asyncio.sleep(1)  # Throttle 1s/symbol (60/min safe)
                             break
                         elif resp.status == 429:
                             retry_count += 1
@@ -209,7 +210,7 @@ async def fetch_metrics(exchange, ccxt_symbol, raw_symbol, tf='5m'):
             except Exception as mc_e:   
                 print(f"Market Cap fetch error for {raw_symbol}: {mc_e}")
                 retry_count += 1
-                await asyncio.sleep(3)
+                await asyncio.sleep(0.5)
 
         # Post-err mock if 0 (safe)
         if market_cap == 0:
