@@ -9,5 +9,8 @@
       "args": ["-NoExit", "-ExecutionPolicy", "RemoteSigned"]
     }
   },
-  "terminal.integrated.defaultProfile.windows": "PowerShell"
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "python.analysis.extraPaths": ["../.."],  // Root for src.futuresboard relative imports
+  "python.defaultInterpreterPath": ".venv/Scripts/python.exe",  // Confirm .venv
+  "python.terminal.activateEnvironment": true  // Activate venv on terminal open
 }
