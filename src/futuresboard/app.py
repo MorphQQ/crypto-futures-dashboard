@@ -10,6 +10,10 @@ import argparse
 import os
 from dotenv import load_dotenv  # .env load (API_KEY, AUTO_SCRAPE_INTERVAL)
 
+# Sys.path hack for relative imports in script mode (Pylance/VSCode resolves – top before imports)
+from sys import path
+path.append(os.path.dirname(os.path.dirname(__file__)))  # Add src parent (backend)
+
 from flask import Flask, redirect, request, render_template, current_app, jsonify  # Added jsonify
 from flask_cors import CORS  # For frontend fetches
 from flask_socketio import SocketIO  # WS for Phase 1 refreshes
@@ -18,7 +22,7 @@ from flask_socketio import SocketIO  # WS for Phase 1 refreshes
 from . import blueprint
 from . import db
 from .config import Config
-from .db import get_latest_metrics, get_metrics_by_symbol  # Relative: No Metric for now (stub if needed)
+from .db import get_latest_metrics, get_metrics_by_symbol, Metric  # Relative: Metric for cols serialize
 from .metrics import metrics_bp  # Relative
 
 # Logging setup (Phase 1: app.log 10MB x3 rotate)
