@@ -23,7 +23,9 @@ try:
   print(f"Appended KPI row: {row.strip()}")
   print("| Avg Z-Score ('5m') | DB Rows ('5m') |")  
   print("|---------------------|----------------|")  
-  print(f"| {df['avg_z'][0]:.2f} | {df['rows'][0]} |")  
+  # L26 Fix: None guard for avg_z (fillna(0) or N/A if rows==0)
+  avg_z_val = df['avg_z'].fillna(0)[0] if df['rows'][0] > 0 else 0.00
+  print(f"| {avg_z_val:.2f} | {df['rows'][0]} |") 
 except sqlite3.OperationalError as e:  
   if 'z_score' in str(e):  
     print("## DB Note: z_score missing – Run alter_db.py + re-seed")  

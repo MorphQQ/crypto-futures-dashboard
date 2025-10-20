@@ -26,7 +26,8 @@ Owner: Lian Isaac | Last Gen: 2025-10-18 | Auto-Update: PS: python docs/gen_trac
 ```python  
 # In gen_tracker.py: Matplotlib roll Z avg (20 pairs)  
 import matplotlib.pyplot as plt; import pandas as pd; import sqlite3  
-con = sqlite3.connect('../backend/config/futures.db'); df = pd.read_sql("SELECT z_score, timestamp FROM metrics LIMIT 100", con)  
+con = sqlite3.connect('../backend/src/futuresboard/futures.db'); df = pd.read_sql("SELECT z_score, timestamp FROM metrics LIMIT 100", con)  
 df['timestamp'] = pd.to_datetime(df['timestamp']); df.set_index('timestamp', inplace=True)  
 df['z_roll'] = df['z_score'].rolling(20).mean(); plt.plot(df['z_roll']); plt.title('Z-Roll Mean Trend'); plt.savefig('../docs/z_trend.png')  
-# Output: Embed !<a href="/docs/z_trend.png" target="_blank" rel="noopener noreferrer nofollow"></a> in MD  | Avg Z-Score ('5m') | DB Rows ('5m') |
+# Output: Embed <image-card alt="Z Trend" src="z_trend.png" ></image-card> in MD  || P3 | 25% | Framework v1.3 sync (2 files, 2025-10-20 13:28) |
+| P3 | 25% | Framework v1.3 sync (2 files, 2025-10-20 13:30) |
