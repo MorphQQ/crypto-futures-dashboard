@@ -85,4 +85,12 @@ cd backend/src/futuresboard; python app.py ; cd ../.. ; python seed_metrics.py -
 # Git + Blueprint Update  
 git add docs/quant_blueprint.md ; git commit -m "QE v1.0: Weighted tease + tiers" ; git push  
 # Auto-Gen MD from DB (New: docs/gen_blueprint.py)  
-python docs/gen_blueprint.py # Queries rows/Z avg → Update Section VIII #
+python docs/gen_blueprint.py # Queries rows/Z avg → Update Section VIII ### Auto-KPI Update (No Data)
+| Weighted OI | Current |
+|-------------|---------|
+| $0.00B | No rows |
+## Auto-KPI Update (No Data)
+| Weighted OI | Current |
+|-------------|---------|
+| $0.00B | No rows |
+
