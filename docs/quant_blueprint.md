@@ -85,48 +85,9 @@ cd backend/src/futuresboard; python app.py ; cd ../.. ; python seed_metrics.py -
 # Git + Blueprint Update  
 git add docs/quant_blueprint.md ; git commit -m "QE v1.0: Weighted tease + tiers" ; git push  
 # Auto-Gen MD from DB (New: docs/gen_blueprint.py)  
-python docs/gen_blueprint.py # Queries rows/Z avg → Update Section VIII ### Auto-KPI Update (No Data)
-| Weighted OI | Current |
-|-------------|---------|
-| $0.00B | No rows |
-## Auto-KPI Update (No Data)
-| Weighted OI | Current |
-|-------------|---------|
-| $0.00B | No rows |
+python docs/gen_blueprint.py # Queries rows/Z avg → Update Section VIII #
 
-## Auto-KPI Update (No Data)
+## Auto-KPI Update (Weighted OI Tease 2025-10-20 15:44)
 | Weighted OI | Current |
 |-------------|---------|
-| $0.00B | No rows |
-## Auto-KPI Update (No Data)
-| Weighted OI | Current |
-|-------------|---------|
-| $0.00B | No rows |
-
-## Auto-KPI Update (No Data)
-| Weighted OI | Current |
-|-------------|---------|
-| $0.00B | No rows |
-## Auto-KPI Update (No Data)
-| Weighted OI | Current |
-|-------------|---------|
-| $0.00B | No rows |
-
-## Auto-KPI Update (No Data)
-| Weighted OI | Current |
-|-------------|---------|
-| $0.00B | No rows |
-## Auto-KPI Update (No Data)
-| Weighted OI | Current |
-|-------------|---------|
-| $0.00B | No rows |
-
-## Auto-KPI Update (No Data)
-| Weighted OI | Current |
-|-------------|---------|
-| $0.00B | No rows |
-## Auto-KPI Update (No Data)
-| Weighted OI | Current |
-|-------------|---------|
-| $0.00B | No rows |
-
+| $24.79B | Avg 20 pairs |
