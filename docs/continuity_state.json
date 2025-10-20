@@ -1,8 +1,8 @@
 ﻿{
-    "timestamp":  "2025-10-20 22:45:07",
+    "timestamp":  "2025-10-20 22:48:57",
     "phase":  "P3 - Weighted OI + Top L/S + Alerts",
     "backend":  "unhealthy",
-    "uptimePct":  80,
+    "uptimePct":  66.7,
     "file_hashes":  {
                         "metrics.py":  "7E7EA78",
                         "blueprint.py":  "2E30F01",
