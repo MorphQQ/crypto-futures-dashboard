@@ -5,7 +5,7 @@ import subprocess  # New: Git diff tease
 import os
 from datetime import datetime
 
-con = sqlite3.connect('../../backend/src/futuresboard/futures.db')  # Fix: Screenshot path src/futuresboard/
+con = sqlite3.connect(r'E:\Trading\crypto-futures-dashboard\backend\src\futuresboard\futures.db')
 # Auto-fix NULL tf  
 con.execute("UPDATE metrics SET timeframe = '5m' WHERE timeframe IS NULL")  
 con.commit()  

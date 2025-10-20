@@ -3,7 +3,7 @@
 import sqlite3
 import pandas as pd
 import numpy as np
-con = sqlite3.connect('../../backend/src/futuresboard/futures.db')  # Fix: Screenshot path
+con = sqlite3.connect(r'E:\Trading\crypto-futures-dashboard\backend\src\futuresboard\futures.db')
 df = pd.read_sql("SELECT oi_abs_usd, vol_usd FROM metrics ORDER BY timestamp DESC LIMIT 20", con)  # Recent rows for weighted
 if len(df) == 0:
     kpi = "## Auto-KPI Update (No Data)\n| Weighted OI | Current |\n|-------------|---------|\n| $0.00B | No rows |\n"
