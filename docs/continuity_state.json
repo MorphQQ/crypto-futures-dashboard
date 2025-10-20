@@ -1,9 +1,9 @@
 {
-  "timestamp": "2025-10-20T23:14:28",
+  "timestamp": "2025-10-20T23:19:28",
   "phase": "P3 - Weighted OI + Top L/S + Alerts",
   "backend": "healthy",
-  "uptimePct": 72.93,
-  "total_runtime": 10800.08,
+  "uptimePct": 73.66,
+  "total_runtime": 11100.08,
   "downtime": 2923.58,
   "status": "active"
 }
