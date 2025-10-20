@@ -11,10 +11,13 @@ con.execute("UPDATE metrics SET timeframe = '5m' WHERE timeframe IS NULL")
 con.commit()  
 try:  
   # Try '15m' first, fallback to '5m' or total  
-  # L15 Fix: Fallback total if tf='15m' rows==0
+  # L15 Fix: Chain fallback '15m' → '5m' → total if 0
   df = pd.read_sql("SELECT AVG(z_score) as avg_z, COUNT(*) as rows FROM metrics WHERE timeframe='15m'", con)
   if df['rows'][0] == 0:
-      df = pd.read_sql("SELECT AVG(z_score) as avg_z, COUNT(*) as rows FROM metrics", con)  # Total fallback
+      df = pd.read_sql("SELECT AVG(z_score) as avg_z, COUNT(*) as rows FROM metrics WHERE timeframe='5m'", con)
+      if df['rows'][0] == 0:
+          df = pd.read_sql("SELECT AVG(z_score) as avg_z, COUNT(*) as rows FROM metrics", con)  # Total fallback
+  print(f"Query fallback: tf='15m' rows {df['rows'][0]} (chain to '5m'/total if 0)")
   # Optim: Git diff append (files_changed env or default 0)
   files_changed = int(os.getenv('FILES_CHANGED', '0'))
   ts = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -24,9 +27,9 @@ try:
   print(f"Appended KPI row: {row.strip()}")
   print("| Avg Z-Score ('5m') | DB Rows ('5m') |")  
   print("|---------------------|----------------|")  
-  # L26 Fix: None guard for avg_z (fillna(0) or N/A if rows==0)
-  avg_z_val = df['avg_z'].fillna(0)[0] if df['rows'][0] > 0 else 0.00
-  print(f"| {avg_z_val:.2f} | {df['rows'][0]} |") 
+  # L26 Fix: None guard for avg_z (N/A if rows==0)
+  avg_z_val = df['avg_z'].fillna(0)[0] if df['rows'][0] > 0 else 'N/A'
+  print(f"| {avg_z_val} | {df['rows'][0]} |") 
 except sqlite3.OperationalError as e:  
   if 'z_score' in str(e):  
     print("## DB Note: z_score missing – Run alter_db.py + re-seed")  
@@ -40,18 +43,20 @@ except sqlite3.OperationalError as e:
     print(f"| {df['avg_ls'][0]:.2f} | {df['rows'][0]} |")  
   else:  
     raise e  
-con.close()  
 
-# Optim Tease: Z-roll plot (matplotlib; save png embed) – Comment if no pip
-# try:
-#     import matplotlib.pyplot as plt
-#     df_plot = pd.read_sql("SELECT z_score, timestamp FROM metrics ORDER BY timestamp DESC LIMIT 100", con)
-#     df_plot['timestamp'] = pd.to_datetime(df_plot['timestamp'])
-#     df_plot.set_index('timestamp', inplace=True)
-#     df_plot['z_roll'] = df_plot['z_score'].rolling(20).mean()
-#     plt.plot(df_plot['z_roll'])
-#     plt.title('Z-Roll Mean Trend (Last 100)')
-#     plt.savefig('z_trend.png', dpi=100, bbox_inches='tight')
-#     print("Z-trend plot saved: z_trend.png (embed in progress_tracker.md)")
-# except ImportError:
-#     print("Matplotlib missing: pip install matplotlib (backend/reqs.txt)")
+# Optim Tease: Z-roll plot (matplotlib; save png embed) – Before con.close()
+try:
+    import matplotlib.pyplot as plt
+    df_plot = pd.read_sql("SELECT z_score, timestamp FROM metrics ORDER BY timestamp DESC LIMIT 100", con)
+    df_plot['timestamp'] = pd.to_datetime(df_plot['timestamp'])
+    df_plot.set_index('timestamp', inplace=True)
+    df_plot['z_roll'] = df_plot['z_score'].rolling(20).mean()
+    plt.plot(df_plot['z_roll'])
+    plt.title('Z-Roll Mean Trend (Last 100)')
+    plt.savefig('z_trend.png', dpi=100, bbox_inches='tight')
+    print("Z-trend plot saved: z_trend.png (embed in progress_tracker.md)")
+except ImportError:
+    print("Matplotlib missing: pip install matplotlib (backend/reqs.txt)")
+except Exception as plot_e:
+    print(f"Plot error: {plot_e} - Check DB rows >100")
+con.close()

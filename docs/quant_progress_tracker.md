@@ -48,3 +48,9 @@ Appended KPI row: | P3 | 25% | Framework v1.3 sync (2 files, 2025-10-20 13:49) |
 | Avg Z-Score ('5m') | DB Rows ('5m') |
 |---------------------|----------------|
 | 0.00 | 0 |
+| P3 | 25% | Framework v1.3 sync (2 files, 2025-10-20 13:49) |
+Appended KPI row: | P3 | 25% | Framework v1.3 sync (2 files, 2025-10-20 13:49) |
+| Avg Z-Score ('5m') | DB Rows ('5m') |
+|---------------------|----------------|
+| 0.00 | 0 |
+| P3 | 25% | Framework v1.3 sync (2 files, 2025-10-20 13:53) |
