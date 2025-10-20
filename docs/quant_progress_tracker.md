@@ -31,3 +31,5 @@ df['timestamp'] = pd.to_datetime(df['timestamp']); df.set_index('timestamp', inp
 df['z_roll'] = df['z_score'].rolling(20).mean(); plt.plot(df['z_roll']); plt.title('Z-Roll Mean Trend'); plt.savefig('../docs/z_trend.png')  
 # Output: Embed <image-card alt="Z Trend" src="z_trend.png" ></image-card> in MD  || P3 | 25% | Framework v1.3 sync (2 files, 2025-10-20 13:28) |
 | P3 | 25% | Framework v1.3 sync (2 files, 2025-10-20 13:30) |
+| P3 | 25% | Framework v1.3 sync (3 files, 2025-10-20 13:34) |
+| P3 | 25% | Framework v1.3 sync (3 files, 2025-10-20 13:37) |

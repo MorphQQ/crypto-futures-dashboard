@@ -11,9 +11,10 @@ con.execute("UPDATE metrics SET timeframe = '5m' WHERE timeframe IS NULL")
 con.commit()  
 try:  
   # Try '15m' first, fallback to '5m' or total  
-  df = pd.read_sql("SELECT AVG(z_score) as avg_z, COUNT(*) as rows FROM metrics WHERE timeframe='15m'", con)  
-  if df['rows'][0] == 0:  
-    df = pd.read_sql("SELECT AVG(z_score) as avg_z, COUNT(*) as rows FROM metrics WHERE timeframe='5m'", con)  
+  # L15 Fix: Fallback total if tf='15m' rows==0
+  df = pd.read_sql("SELECT AVG(z_score) as avg_z, COUNT(*) as rows FROM metrics WHERE timeframe='15m'", con)
+  if df['rows'][0] == 0:
+      df = pd.read_sql("SELECT AVG(z_score) as avg_z, COUNT(*) as rows FROM metrics", con)  # Total fallback
   # Optim: Git diff append (files_changed env or default 0)
   files_changed = int(os.getenv('FILES_CHANGED', '0'))
   ts = datetime.now().strftime("%Y-%m-%d %H:%M")
