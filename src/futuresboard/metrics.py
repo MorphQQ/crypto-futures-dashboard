@@ -3,16 +3,16 @@ import asyncio
 import aiohttp
 from flask import Blueprint, request, jsonify
 from datetime import datetime
-from .db import Session, Metric, save_metrics  # try/finally sessions
+from .db import Session, Metric, save_metrics, get_latest_metrics  # +get_latest_metrics
 from .scraper import send_public_request  # Single import: .scraper only
 from .config import Config
 import pathlib
 import os
 import time
-import random  # For mock rand
+import random  # For mock rand + jitter
 import numpy as np
 import pandas as pd  # New: For DataFrame weighted calc (P3)
-
+import statistics  # For Z mean/std tease if needed
 
 metrics_bp = Blueprint('metrics', __name__, url_prefix='/api')
 
@@ -21,8 +21,29 @@ cfg_path = pathlib.Path(os.path.dirname(os.path.dirname(__file__)))  # backend r
 cfg = Config.from_config_dir(cfg_path.parent / "config")  # root/config
 SYMBOLS = cfg.SYMBOLS  # ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'] from .env/JSON
 # Safe DEV_MODE (fallback True if miss; debug)
-DEV_MODE = getattr(cfg, 'DEV_MODE', True)
-print(f"Metrics cfg DEV_MODE: {DEV_MODE} (attr OK)")
+DEV_MODE = os.getenv('DEV_MODE', 'True').lower() == 'true'
+print(f"Metrics cfg DEV_MODE: {DEV_MODE} (direct .env OK)")
+
+# RSI calc (new: numpy 14-period standard)
+def calc_rsi(closes, period=14):
+    if len(closes) < period + 1:
+        return 50.0
+    deltas = np.diff(closes)
+    gains = np.maximum(deltas, 0)
+    losses = np.maximum(-deltas, 0)
+    avg_gain = np.mean(gains[:period])
+    avg_loss = np.mean(losses[:period])
+    rs = avg_gain / avg_loss if avg_loss != 0 else 0
+    rsi = 100 - (100 / (1 + rs))
+    for i in range(period, len(deltas)):
+        avg_gain = (avg_gain * (period-1) + gains[i]) / period
+        avg_loss = (avg_loss * (period-1) + losses[i]) / period
+        rs = avg_gain / avg_loss if avg_loss != 0 else 0
+        rsi = 100 - (100 / (1 + rs))
+    return round(rsi, 2)
+
+# Semaphore global (new: P3 rate guard 8 concurrent)
+semaphore = asyncio.Semaphore(8)
 
 @metrics_bp.route('/metrics')
 def api_metrics():
@@ -32,9 +53,28 @@ def api_metrics():
     offset = int(request.args.get('offset', 0))
     metrics = asyncio.run(get_all_metrics(tf, exch, limit=limit, offset=offset))
     save_metrics(metrics, tf)  # Add tf param
+    # New: Enrich post-save w/ deltas/Z from DB (fast query sym/tf)
+    enriched = []
+    for m in metrics:
+        if 'error' in m: 
+            enriched.append(m)
+            continue
+        latest = get_latest_metrics(limit=1, symbol=m['symbol'], tf=tf)  # Filter sym/tf
+        if latest:
+            m['oi_delta_pct'] = latest[0].oi_delta_pct or 0.0
+            m['ls_delta_pct'] = latest[0].ls_delta_pct or 0.0
+            m['z_ls'] = latest[0].z_ls or 0.0
+            # Finite guard (clip Z ±10)
+            if abs(m['z_ls']) > 10:
+                m['z_ls'] = 10 if m['z_ls'] > 0 else -10
+        else:
+            m['oi_delta_pct'] = 0.0
+            m['ls_delta_pct'] = 0.0
+            m['z_ls'] = 0.0
+        enriched.append(m)
     total = len(asyncio.run(get_all_metrics(tf, exch, limit=None, offset=0)))
-    response = jsonify(metrics)
-    response.headers['Content-Range'] = f'{offset}-{offset+len(metrics)-1}/{total}'
+    response = jsonify(enriched)
+    response.headers['Content-Range'] = f'{offset}-{offset+len(enriched)-1}/{total}'
     return response
 
 @metrics_bp.route('/<symbol>/history')
@@ -82,32 +122,36 @@ async def get_all_metrics(tf='5m', exch='binance', limit=20, offset=0):
     try:
         # Dynamic top-20 (sort by quoteVolume; seed with config SYMBOLS=3)
         tickers = await exchange.fetch_tickers()
-        usdt_pairs = [s for s in tickers if '/USDT:USDT' in s]
+        markets = await exchange.load_markets()  # New: Active filter
+        usdt_pairs = [s for s in tickers if '/USDT:USDT' in s and tickers[s].get('quoteVolume', 0) > 1e8 and markets.get(s.replace('/USDT:USDT', 'USDT'), {}).get('active', False) and markets.get(s.replace('/USDT:USDT', 'USDT'), {}).get('type') == 'future']  # Filter active futures vol>1e8
         sorted_ccxt_symbols = sorted(usdt_pairs, key=lambda x: tickers[x].get('quoteVolume', 0), reverse=True)
         if limit is not None:
             sorted_ccxt_symbols = sorted_ccxt_symbols[offset:offset+limit]
         raw_symbols = [s.replace('/USDT:USDT', 'USDT') for s in sorted_ccxt_symbols]  # Dynamic top-N, no [:len(SYMBOLS)]
         ccxt_symbols = [s.replace('USDT', '/USDT:USDT') for s in raw_symbols]
         
-        # Batch chunks 10/pair w/ backoff
+        # Batch chunks 10/pair w/ backoff + semaphore
         results = []
         backoff = 0.2
         chunk_size = 10
         for i in range(0, len(ccxt_symbols), chunk_size):
             chunk_ccxt = ccxt_symbols[i:i+chunk_size]
             chunk_raw = raw_symbols[i:i+chunk_size]
-            tasks = [fetch_metrics(exchange, cc_sym, raw_sym, tf) for cc_sym, raw_sym in zip(chunk_ccxt, chunk_raw)]
+            async def sem_task(cc_sym, raw_sym):
+                async with semaphore:  # New: 8 concurrent
+                    return await fetch_metrics(exchange, cc_sym, raw_sym, tf)
+            tasks = [sem_task(cc, rw) for cc, rw in zip(chunk_ccxt, chunk_raw)]
             try:
                 chunk_res = await asyncio.gather(*tasks, return_exceptions=True)
                 results.extend([r for r in chunk_res if not isinstance(r, Exception) and 'error' not in r])
             except ccxt_async.NetworkError as e:
                 if 'DDoS' in str(e) or 'rateLimit' in str(e):
-                    await asyncio.sleep(backoff)
+                    await asyncio.sleep(backoff + random.uniform(0.1, 0.5))  # Fix: +jitter 0.1-0.5s
                     backoff = min(backoff * 2, 10)
                     print(f"Rate limit {exch} chunk {i//chunk_size}: {e} - retry {backoff}s")
                 else:
                     raise
-            await asyncio.sleep(0.5)  # Rate limit
+            await asyncio.sleep(random.uniform(0.1, 0.5))  # Fix: Per-chunk jitter
         # Weighted global OI (P3: Σ(OI·vol)/Σ(vol); Bybit tease if exch=='bybit')
         if exch == 'bybit':
             print(f"Bybit fallback WS fstream for tf={tf}")
@@ -159,9 +203,10 @@ async def fetch_metrics(exchange, ccxt_symbol, raw_symbol, tf='5m'):
             'top_ls_accounts': random.uniform(1.5,2.5),
             'Top_LS_Positions': random.uniform(0.8,1.2),
             'cvd': mock['cvd'],
-            'z_ls': mock['z'],
-            'imbalance': mock['imb'],
-            'funding': mock['fund'],
+            'z_ls': mock['z'],  # From enrich post-save
+            'imbalance': mock['imb'],  # Fix: Synth real-ish
+            'funding': mock['fund'],  # Fix: Synth real-ish
+            'rsi': random.uniform(30, 70),  # New: DEV rand 30-70
             'timestamp': datetime.now().timestamp(),
             'timeframe': tf,  # New: Bind for WS filter/DB query (even if DB has col)
             'vol_usd': random.uniform(1e9,5e9)  # Synth vol for weighted (P3)
@@ -181,41 +226,14 @@ async def fetch_metrics(exchange, ccxt_symbol, raw_symbol, tf='5m'):
         volume_24h = ticker.get('quoteVolume', 0)
         print(f"Raw OI Data for {raw_symbol}: {oi_data.get('openInterestAmount', 'N/A')} contracts")
         
-        # Market Cap: CoinGecko (async aiohttp)
-        coingecko_ids = {'BTC': 'bitcoin', 'ETH': 'ethereum', 'SOL': 'solana', 'BNB': 'bnb', 'XRP': 'xrp', 'DOG': 'dogecoin', 'SUI': 'sui', 'AST': 'astar', 'PAX': 'pax-gold'}
-        base = raw_symbol.replace('USDT', '').upper()[:3]
-        cg_id = coingecko_ids.get(base, base.lower())
-        market_cap = 0
-        retry_count = 0
-        max_retries = 5
-        while retry_count < max_retries:
-            try:
-                async with aiohttp.ClientSession() as session:
-                    url = f"https://api.coingecko.com/api/v3/simple/price?ids={cg_id}&vs_currencies=usd&include_market_cap=true"
-                    async with session.get(url) as resp:
-                        if resp.status == 200:
-                            data = await resp.json()
-                            market_cap = data.get(cg_id, {}).get('usd_market_cap', 0)
-                            print(f"Market Cap for {base} ({cg_id}): ${market_cap:,.0f}")
-                            break
-                        elif resp.status == 429:
-                            retry_count += 1
-                            wait = 3 ** retry_count
-                            print(f"CoinGecko 429 for {cg_id}: retry {retry_count}/{max_retries} in {wait}s")
-                            await asyncio.sleep(wait)
-                        else:
-                            print(f"CoinGecko error for {cg_id}: {resp.status}")
-                            break
-            except Exception as mc_e:   
-                print(f"Market Cap fetch error for {raw_symbol}: {mc_e}")
-                retry_count += 1
-                await asyncio.sleep(3)
-
-        # Post-err mock if 0 (safe)
+        # Vol proxy mcap (quoteVolume * factor ~ mcap est; BTC $50B / $2.15T = ~43x ; avg 40 OK top-5)
+        market_cap = volume_24h * 40  # Tune 30-50 ; ETH $20B / $473B = ~24x – test real
+        print(f"Mcap proxy for {raw_symbol}: ${market_cap:,.0f} (vol * 40x est)")
+        # Fallback if vol=0 (rare top-vol) – mocks dict top-5 only
         if market_cap == 0:
-            mocks = {'bitcoin': 2106970423895, 'ethereum': 455238904066, 'solana': 98335420546, 'bnb': 85000000000, 'xrp': 28000000000, 'dogecoin': 23000000000, 'sui': 8667709737, 'astar': 500000000, 'pax-gold': 500000000}
-            market_cap = mocks.get(cg_id, market_cap) or random.uniform(1e9,1e12)
-            print(f"Post-err Mock Market Cap for {base}: ${market_cap:,.0f}")
+            mocks = {'BTCUSDT': 2146956539121, 'ETHUSDT': 473341878115, 'SOLUSDT': 103334191132, 'BNBUSDT': 85000000000, 'DOGEUSDT': 23000000000}  # Real-ish Oct 19, 2025 (add for syms)
+            market_cap = mocks.get(raw_symbol, 1e12)  # Default 1T no random
+            print(f"Post-err Mock Market Cap for {raw_symbol}: ${market_cap:,.0f}")
         
         # L/S tf-specific (send_public_request)
         global_ls_tf = 'N/A'
@@ -301,6 +319,37 @@ async def fetch_metrics(exchange, ccxt_symbol, raw_symbol, tf='5m'):
                 cvd += vol * sign
         print(f"CVD real {raw_symbol}/{tf}: {cvd:,.0f}")
         
+        # New: RSI from klines (extend limit=50 for hist)
+        _, rsi_klines_resp = send_public_request("/fapi/v1/klines", {"symbol": raw_symbol, "interval": tf, "limit": 50})
+        rsi = 50.0
+        if rsi_klines_resp and len(rsi_klines_resp) >= 15:
+            closes = [float(k[4]) for k in rsi_klines_resp[-15:]]  # Last 15 for 14-period
+            rsi = calc_rsi(np.array(closes))
+            if not np.isfinite(rsi):
+                rsi = 50.0
+        print(f"RSI calc {raw_symbol}/{tf}: {rsi}")
+        
+        # New: Imbalance from depth (bid/ask vol % bias)
+        _, depth_resp = send_public_request("/fapi/v1/depth", {"symbol": raw_symbol, "limit": 10})
+        imbalance = 0.0
+        if depth_resp:
+            bids = depth_resp.get('bids', [])[:5]
+            asks = depth_resp.get('asks', [])[:5]
+            bid_vol = sum(float(b[1]) for b in bids)
+            ask_vol = sum(float(a[1]) for a in asks)
+            if (bid_vol + ask_vol) > 0:
+                imbalance = ((bid_vol - ask_vol) / (bid_vol + ask_vol)) * 100
+                if not np.isfinite(imbalance):
+                    imbalance = 0.0
+        
+        # New: Funding from premiumIndex
+        _, funding_resp = send_public_request("/fapi/v1/premiumIndex", {"symbol": raw_symbol})
+        funding_rate = 0.0
+        if funding_resp:
+            funding_rate = float(funding_resp.get('lastFundingRate', 0)) * 100
+            if not np.isfinite(funding_rate):
+                funding_rate = 0.0
+        
         result = {
             'symbol': raw_symbol.replace('USDT', ''),
             'Price': f"${ticker.get('last', 0):,.2f}",
@@ -321,8 +370,10 @@ async def fetch_metrics(exchange, ccxt_symbol, raw_symbol, tf='5m'):
             'top_ls_accounts': top_ls_tf,  # Explicit for DB
             'Top_LS_Positions': top_ls_positions,
             'cvd': cvd,
-            'imbalance': 0.0,  # Stub; real from /fapi/v1/depth P3
-            'funding': 0.0,  # Stub; real from /fapi/v1/premiumIndex P3
+            'z_ls': 0.0,  # From enrich post-save
+            'imbalance': imbalance,  # New: Real %
+            'funding': funding_rate,  # New: Real %
+            'rsi': rsi,  # New: Calc
             'timestamp': datetime.now().timestamp(),
             'vol_usd': volume_24h  # New: Proxy vol from quoteVolume for weighted P3
         }

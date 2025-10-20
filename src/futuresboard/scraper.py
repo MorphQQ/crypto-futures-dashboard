@@ -81,6 +81,7 @@ def _auto_scrape(app):
     while True:
         app.logger.info("Auto scrape routines starting")
         tf = tfs[tf_idx % len(tfs)]  # Rotate tf
+        app.logger.info("Auto scrape routines starting tf=" + tf)  # Test log (tf rotate)
         # ... existing scrape(app=app) ...
         # Lazy metrics hook: Pass tf to get_all_metrics/save_metrics
         from .metrics import get_all_metrics
@@ -89,9 +90,10 @@ def _auto_scrape(app):
         asyncio.set_event_loop(loop)
         metrics = loop.run_until_complete(get_all_metrics(tf=tf))  # Add tf
         saved_count = save_metrics(metrics, tf)  # tf
-        loop.close()
-        app.logger.info(f"Saved {saved_count} metrics tf={tf}")
+        app.logger.info(f"Saved {saved_count} metrics tf={tf}")  # Test saved
         q.put(metrics)  # Emit tf-specific
+        app.logger.info(f"Queued {len(metrics)} for WS emit tf={tf}")  # Test queue
+        loop.close()
         tf_idx += 1
         time.sleep(interval)
 
