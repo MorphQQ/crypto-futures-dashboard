@@ -25,5 +25,32 @@
     "total_runtime": 9900.07,
     "downtime": 5847.16,
     "status": "active"
+  },
+  {
+    "timestamp": "2025-10-20T22:59:28",
+    "phase": "P3 - Weighted OI + Top L/S + Alerts",
+    "backend": "healthy",
+    "uptimePct": 70.47,
+    "total_runtime": 9900.08,
+    "downtime": 2923.58,
+    "status": "active"
+  },
+  {
+    "timestamp": "2025-10-20T23:04:25",
+    "phase": "P3 - Weighted OI + Top L/S + Alerts",
+    "backend": "healthy",
+    "uptimePct": 42.68,
+    "total_runtime": 10200.07,
+    "downtime": 5847.16,
+    "status": "active"
+  },
+  {
+    "timestamp": "2025-10-20T23:04:28",
+    "phase": "P3 - Weighted OI + Top L/S + Alerts",
+    "backend": "healthy",
+    "uptimePct": 71.34,
+    "total_runtime": 10200.08,
+    "downtime": 2923.58,
+    "status": "active"
   }
 ]
