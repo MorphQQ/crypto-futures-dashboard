@@ -52,5 +52,23 @@
     "total_runtime": 10200.08,
     "downtime": 2923.58,
     "status": "active"
+  },
+  {
+    "timestamp": "2025-10-20T23:09:25",
+    "phase": "P3 - Weighted OI + Top L/S + Alerts",
+    "backend": "healthy",
+    "uptimePct": 44.31,
+    "total_runtime": 10500.07,
+    "downtime": 5847.16,
+    "status": "active"
+  },
+  {
+    "timestamp": "2025-10-20T23:09:28",
+    "phase": "P3 - Weighted OI + Top L/S + Alerts",
+    "backend": "healthy",
+    "uptimePct": 72.16,
+    "total_runtime": 10500.08,
+    "downtime": 2923.58,
+    "status": "active"
   }
 ]
