@@ -33,3 +33,8 @@ df['z_roll'] = df['z_score'].rolling(20).mean(); plt.plot(df['z_roll']); plt.tit
 | P3 | 25% | Framework v1.3 sync (2 files, 2025-10-20 13:30) |
 | P3 | 25% | Framework v1.3 sync (3 files, 2025-10-20 13:34) |
 | P3 | 25% | Framework v1.3 sync (3 files, 2025-10-20 13:37) |
+| P3 | 25% | Framework v1.3 sync (1 files, 2025-10-20 13:45) |
+Appended KPI row: | P3 | 25% | Framework v1.3 sync (1 files, 2025-10-20 13:45) |
+| Avg Z-Score ('5m') | DB Rows ('5m') |
+|---------------------|----------------|
+| 0.00 | 0 |
