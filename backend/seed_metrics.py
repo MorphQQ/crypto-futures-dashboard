@@ -77,6 +77,7 @@ def generate_mock(tf='5m'):
 async def main():  
     cfg_path = pathlib.Path(os.path.dirname(os.path.dirname(__file__)))  # backend root  
     cfg = Config.from_config_dir(cfg_path)  
+    print(f"Seed DB Path: {str(cfg.DATABASE)}")  # Echo exact path (e.g., E:\...\backend\futures.db)
     temp_app = Flask(__name__)  
     temp_app.config.from_object(cfg)  
     temp_app.config['DATABASE'] = str(cfg.DATABASE)  

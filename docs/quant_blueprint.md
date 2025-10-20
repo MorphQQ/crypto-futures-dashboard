@@ -130,7 +130,3 @@ python docs/gen_blueprint.py # Queries rows/Z avg → Update Section VIII ### Au
 |-------------|---------|
 | $0.00B | No rows |
 
-## Auto-KPI Update (No Data)
-| Weighted OI | Current |
-|-------------|---------|
-| $0.00B | No rows |

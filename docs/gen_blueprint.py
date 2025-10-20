@@ -1,10 +1,10 @@
 # Run: PS: cd docs ; python gen_blueprint.py >> quant_blueprint.md (Append VIII KPI w/ weighted)
-# Fix: Path src/futuresboard/; Req pandas/np in backend/reqs.txt
+# Fix: Path src/futuresboard/ → root/futures.db (seed match); Req pandas/np in backend/reqs.txt
 import sqlite3
 import pandas as pd
 import numpy as np
 
-db_path = r'E:\Trading\crypto-futures-dashboard\backend\src\futuresboard\futures.db'
+db_path = r'E:\Trading\crypto-futures-dashboard\futures.db'  # Aligned w/ seed (root)
 print(f"DB Path: {db_path}")  # Echo for path check
 
 try:
