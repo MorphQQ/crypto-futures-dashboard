@@ -1,78 +1,20 @@
-﻿[
-    {
-        "timestamp":  "2025-10-20T22:39:25",
-        "phase":  "P3 - Weighted OI + Top L/S + Alerts",
-        "backend":  "healthy",
-        "uptimePct":  32.79,
-        "total_runtime":  8700.07,
-        "downtime":  5847.16,
-        "status":  "active"
-    },
-    {
-        "timestamp":  "2025-10-20T22:39:28",
-        "phase":  "P3 - Weighted OI + Top L/S + Alerts",
-        "backend":  "healthy",
-        "uptimePct":  66.4,
-        "total_runtime":  8700.05,
-        "downtime":  2923.58,
-        "status":  "active"
-    },
-    {
-        "timestamp":  "2025-10-20T22:44:25",
-        "phase":  "P3 - Weighted OI + Top L/S + Alerts",
-        "backend":  "healthy",
-        "uptimePct":  35.03,
-        "total_runtime":  9000.07,
-        "downtime":  5847.16,
-        "status":  "active"
-    },
-    {
-        "timestamp":  "2025-10-20T22:44:28",
-        "phase":  "P3 - Weighted OI + Top L/S + Alerts",
-        "backend":  "healthy",
-        "uptimePct":  67.52,
-        "total_runtime":  9000.05,
-        "downtime":  2923.58,
-        "status":  "active"
-    },
-    {
-        "timestamp":  "2025-10-20 22:45:07",
-        "phase":  "P3 - Weighted OI + Top L/S + Alerts",
-        "backend":  "unhealthy",
-        "hashes":  {
-                       "metrics.py":  "7E7EA78",
-                       "blueprint.py":  "2E30F01",
-                       "utils.py":  "53C7BAE",
-                       "binance_ws_client.py":  "77947D9",
-                       "wsgi.py":  "AFEA7F6",
-                       "App.jsx":  "F3D8524",
-                       "app.py":  "FF28C40",
-                       "db.py":  "2D2F5C1",
-                       "cli.py":  "040D524",
-                       "scraper.py":  "777530F",
-                       "config.py":  "974FCEA",
-                       "version.py":  "A28548B",
-                       "__init__.py":  "D2835BF"
-                   }
-    },
-    {
-        "timestamp":  "2025-10-20 22:48:57",
-        "phase":  "P3 - Weighted OI + Top L/S + Alerts",
-        "backend":  "unhealthy",
-        "hashes":  {
-                       "metrics.py":  "7E7EA78",
-                       "blueprint.py":  "2E30F01",
-                       "utils.py":  "53C7BAE",
-                       "binance_ws_client.py":  "77947D9",
-                       "wsgi.py":  "AFEA7F6",
-                       "App.jsx":  "F3D8524",
-                       "app.py":  "FF28C40",
-                       "db.py":  "2D2F5C1",
-                       "cli.py":  "040D524",
-                       "scraper.py":  "777530F",
-                       "config.py":  "974FCEA",
-                       "version.py":  "A28548B",
-                       "__init__.py":  "D2835BF"
-                   }
-    }
+[
+  {
+    "timestamp": "2025-10-20T22:54:25",
+    "phase": "P3 - Weighted OI + Top L/S + Alerts",
+    "backend": "healthy",
+    "uptimePct": 39.09,
+    "total_runtime": 9600.07,
+    "downtime": 5847.16,
+    "status": "active"
+  },
+  {
+    "timestamp": "2025-10-20T22:54:28",
+    "phase": "P3 - Weighted OI + Top L/S + Alerts",
+    "backend": "healthy",
+    "uptimePct": 69.55,
+    "total_runtime": 9600.08,
+    "downtime": 2923.58,
+    "status": "active"
+  }
 ]

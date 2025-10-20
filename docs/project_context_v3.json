@@ -1,0 +1,23 @@
+﻿{
+    "timestamp":  "2025-10-20 22:51:30",
+    "phase":  "P3 - Weighted OI + Top L/S + Alerts",
+    "backend_health":  "\r\n\r\nStatusCode        : 200\r\nStatusDescription : OK\r\nContent           : {\r\n                      \"continuity\": {\r\n                        \"backend\": \"healthy\",\r\n                        \"last_sync\": \"2025-10-20T22:49:28\",\r\n                        \"phase\": \"P3 - Weighted OI + Top L/S + Alerts\",\r\n                        \"uptimePct\": 68.56\r\n                      },\r\n                      \"status\": \"healthy\",\r\n                      \"timestam...\r\nRawContent        : HTTP/1.1 200 OK\r\n                    Access-Control-Allow-Origin: http://localhost:5173\r\n                    Connection: close\r\n                    Content-Length: 251\r\n                    Content-Type: application/json\r\n                    Date: Mon, 20 Oct 2025 17:21:32 GMT\r\n                    Server: Werkzeug/3.1.3...\r\nForms             : \r\nHeaders           : {[Access-Control-Allow-Origin, http://localhost:5173], [Connection, close], [Content-Length, 251], [Content-Type, application/json]...}\r\nImages            : {}\r\nInputFields       : {}\r\nLinks             : {}\r\nParsedHtml        : \r\nRawContentLength  : 251\r\n\r\n\r\n\r\n",
+    "backend_config":  {
+
+                       },
+    "sample_metric":  {
+
+                      },
+    "repo_summary":  {
+
+                     },
+    "uptime_pct":  66.7,
+    "backend_name":  "futuresboard",
+    "db_path":  "backend/src/futuresboard/futures.db",
+    "system":  {
+                   "node":  "v22.20.0",
+                   "user":  "Lian",
+                   "os":  "Microsoft Windows 10 Pro",
+                   "python":  "Python 3.13.1"
+               }
+}
