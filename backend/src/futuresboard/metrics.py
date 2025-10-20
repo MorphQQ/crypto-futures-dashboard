@@ -111,6 +111,8 @@ def add_metrics_route(app):
 
 async def get_all_metrics(tf='5m', exch='binance', limit=20, offset=0):
     """Batch fetch with dynamic top-20, backoff (Phase 1). Standalone."""
+    print(f"DEBUG: get_all_metrics called tf={tf}, exch={exch}, limit={limit}, offset={offset}")
+    print(f"DEBUG: SYMBOLS len={len(SYMBOLS)}: {SYMBOLS[:3]}...")  # Tease first 3
     exchange_class = getattr(ccxt_async, exch, ccxt_async.binance)
     exchange = exchange_class({
         'apiKey': cfg.API_KEY,
@@ -144,6 +146,7 @@ async def get_all_metrics(tf='5m', exch='binance', limit=20, offset=0):
             try:
                 chunk_res = await asyncio.gather(*tasks, return_exceptions=True)
                 results.extend([r for r in chunk_res if not isinstance(r, Exception) and 'error' not in r])
+                print(f"DEBUG: Post-gather results len={len(results)} (exc filtered?)")
             except ccxt_async.NetworkError as e:
                 if 'DDoS' in str(e) or 'rateLimit' in str(e):
                     await asyncio.sleep(backoff + random.uniform(0.1, 0.5))  # Fix: +jitter 0.1-0.5s
@@ -156,6 +159,7 @@ async def get_all_metrics(tf='5m', exch='binance', limit=20, offset=0):
         if exch == 'bybit':
             print(f"Bybit fallback WS fstream for tf={tf}")
         df = pd.DataFrame(results)  # From your results list
+        print(f"DEBUG: Raw results len={len(results)} (pre-extend/filter)")
         if len(df) > 0 and 'vol_usd' in df.columns and df['vol_usd'].sum() > 0:
             weights = df['vol_usd'] / df['vol_usd'].sum()
             weighted_oi = np.average(df['oi_abs_usd'], weights=weights)
