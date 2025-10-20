@@ -1,13 +1,11 @@
-# backend/requirements.txt v1.3.1 (Oct 20, 2025 – NumPy 2.1.1 Wheels for Py3.12 No Build)
-ccxt==4.5.11  # Latest async (metrics.py fetch_tickers/semaphore/jitter)
-sqlalchemy==2.0.31  # DB ORM (db.py bulk upsert tf bind)
-flask==3.0.3  # API/WS (app.py /metrics Content-Range)
-flask-socketio==5.3.6  # Emit batch ('metrics_update'/alert_toast)
-numpy==2.1.1  # 3.12 wheels (Z/RSI/CVD np.average/isfinite; no cl build)
-pandas==2.2.2  # DataFrame weighted (gen_blueprint df_clean.dropna)
-matplotlib==3.9.0  # Z-roll plot (gen_tracker plt.savefig embed)
-scipy==1.13.1  # Z-score/pearsonr (blueprint II corr P4)
-aiohttp==3.10.5  # Async requests (scraper send_public_request)
-requests==2.32.3  # Sync fallback
-python-dotenv==1.0.1  # .env load (config.py DEV_MODE)
-# Stdlib: sqlite3/pathlib/os/datetime/random/statistics
+ccxt==4.5.11
+sqlalchemy==2.0.44
+flask==3.1.2
+flask-socketio==5.5.1
+numpy==2.3.4
+pandas==2.3.3
+matplotlib==3.10.7
+scipy==1.16.2
+aiohttp>=3.10.11
+requests==2.32.3
+python-dotenv==1.0.1
