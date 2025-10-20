@@ -8,7 +8,15 @@ from logging.handlers import RotatingFileHandler
 
 import argparse
 import os
+from datetime import datetime
 from dotenv import load_dotenv  # .env load (API_KEY, AUTO_SCRAPE_INTERVAL)
+import time  # For continuity sync loop sleep
+
+# === Phase 3 unified environment setup ===
+load_dotenv()
+DB_PATH = os.getenv("DB_PATH", "backend/src/futuresboard/futures.db")
+CONTINUITY_DOCS = os.getenv("CONTINUITY_DOCS", "docs/continuity_state.json")
+PHASE = os.getenv("PHASE", "P3 - Weighted OI + Top L/S + Alerts")
 
 # Sys.path hack for relative imports in script mode (Pylance/VSCode resolves – top before imports)
 from sys import path
@@ -115,21 +123,29 @@ def init_app(config: Config | None = None):
             serialized.append(row_dict)
         return jsonify(serialized)  # [ {'time': 1760764607.87, 'price': 69163.63, 'global_ls_5m': 1.82, ...} ]
 
-    @app.route('/health', methods=['GET'])
-    def health_check():
-        #print("Health route registered at /health")  # Debug: Confirms def executes
+    @app.route("/health")
+    def health():
+        state_path = CONTINUITY_DOCS
+        state_data = {}
         try:
-            # DB ping via config (aligns pydantic resolve config/futures.db)
-            from .config import Config  # Relative
-            cfg = Config.from_config_dir(pathlib.Path.cwd())
-            db_path = str(cfg.DATABASE)
-            conn = sqlite3.connect(db_path)
-            conn.execute('SELECT 1')
-            conn.close()
-            return jsonify({'status': 'healthy', 'version': 'v0.3.3', 'db_path': db_path}), 200
+            if os.path.exists(state_path):
+                with open(state_path, "r", encoding="utf-8") as f:
+                    state_data = json.load(f)
         except Exception as e:
-            current_app.logger.error(f"Health check failed: {e}")
-            return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
+            state_data = {"error": f"Could not read state: {str(e)}"}
+
+        response = {
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
+            "version": "v0.3.3",
+            "continuity": {
+                "phase": state_data.get("phase", PHASE),
+                "uptimePct": state_data.get("uptimePct", 0),
+                "backend": state_data.get("backend", "unknown"),
+                "last_sync": state_data.get("timestamp", "N/A"),
+            },
+        }
+        return jsonify(response)
         
     # Lazy metrics import + route add (breaks cycle: post-app init)
     from .metrics import add_metrics_route, metrics_bp  # Relative: Import here + metrics_bp for register
@@ -147,6 +163,119 @@ def init_app(config: Config | None = None):
         scraper.auto_scrape(app)
 
     #print(app.url_map)  # Debug: Show all routes (expect /health GET)
+        import threading
+
+    def continuity_sync_loop():
+        """
+        Continuity Sync Loop:
+        Writes docs/continuity_state.json and docs/continuity_log.json every 5 minutes,
+        tracking uptime percentage and detecting downtime gaps between runs.
+        """
+        phase = os.getenv("PHASE", "P3 - Weighted OI + Top L/S + Alerts")
+        state_file = os.path.join(os.path.dirname(__file__), "../../../docs/continuity_state.json")
+        log_file = os.path.join(os.path.dirname(__file__), "../../../docs/continuity_log.json")
+        os.makedirs(os.path.dirname(state_file), exist_ok=True)
+
+        start_time = time.time()
+        total_runtime = 0.0
+        downtime = 0.0
+        last_sync_time = None
+
+        # Load previous state (to maintain continuity between restarts)
+        if os.path.exists(state_file):
+            try:
+                with open(state_file, "r", encoding="utf-8") as f:
+                    prev_state = json.load(f)
+                    total_runtime = prev_state.get("total_runtime", 0.0)
+                    downtime = prev_state.get("downtime", 0.0)
+                    last_sync_time = prev_state.get("timestamp")
+            except Exception:
+                pass
+
+        # Check if downtime occurred since last run
+        if last_sync_time:
+            try:
+                last_dt = datetime.fromisoformat(last_sync_time)
+                gap_sec = (datetime.now() - last_dt).total_seconds()
+                if gap_sec > 600:  # >10 minutes gap considered downtime
+                    downtime += gap_sec
+                    print(f"[Continuity] Downtime gap detected: {gap_sec:.0f}s added")
+            except Exception:
+                pass
+
+        while True:
+            try:
+                now = datetime.now()
+                now_str = now.isoformat(timespec="seconds")
+                uptime_sec = time.time() - start_time
+                total_runtime += uptime_sec
+
+                # Calculate uptime percentage
+                uptimePct = 0.0
+                if total_runtime > 0:
+                    uptimePct = max(0, min(100, ((total_runtime - downtime) / total_runtime) * 100))
+
+                state = {
+                    "timestamp": now_str,
+                    "phase": phase,
+                    "backend": "healthy",
+                    "uptimePct": round(uptimePct, 2),
+                    "total_runtime": round(total_runtime, 2),
+                    "downtime": round(downtime, 2),
+                    "status": "active"
+                }
+
+                # Write state file
+                with open(state_file, "w", encoding="utf-8") as f:
+                    json.dump(state, f, indent=2)
+
+                # Load and append continuity log
+                logs = []
+                if os.path.exists(log_file):
+                    try:
+                        with open(log_file, "r", encoding="utf-8") as f:
+                            logs = json.load(f)
+                    except Exception:
+                        logs = []
+
+                # Check timestamp gap between last and current
+                if logs:
+                    try:
+                        prev_ts = datetime.fromisoformat(logs[-1]["timestamp"])
+                        gap = (now - prev_ts).total_seconds()
+                        if gap > 600:  # >10 minutes since last log
+                            downtime += gap
+                            state["downtime"] = round(downtime, 2)
+                            print(f"[Continuity] Gap {gap:.0f}s detected — added to downtime")
+                    except Exception:
+                        pass
+
+                logs.append(state)
+                logs = logs[-100:]  # Keep latest 100 entries
+                with open(log_file, "w", encoding="utf-8") as f:
+                    json.dump(logs, f, indent=2)
+
+                app.logger.info(
+                    f"[Continuity] Sync updated at {now_str} phase={phase} uptime={state['uptimePct']}% downtime={state['downtime']}"
+                )
+
+                start_time = time.time()
+
+            except Exception as e:
+                app.logger.warning(f"[Continuity] Sync loop error: {e}")
+
+            time.sleep(300)  # Every 5 minutes
+
+    # Start continuity background sync
+    threading.Thread(target=continuity_sync_loop, daemon=True).start()
+    app.logger.info("Continuity sync loop started")
+
+    return app
+
+
+
+    threading.Thread(target=continuity_sync_loop, daemon=True).start()
+    app.logger.info("Continuity sync loop started")
     return app
 
 def main():

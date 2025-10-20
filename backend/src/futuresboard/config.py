@@ -144,7 +144,14 @@ class Config(BaseModel):
         config_dict["AUTO_SCRAPE_INTERVAL"] = int(os.getenv("INTERVAL", str(config_dict.get("AUTO_SCRAPE_INTERVAL", 300))))
 
         config_dict["TEST_MODE"] = os.getenv("TEST_MODE", "False").lower() == "true"
-        
+        # Add: DATABASE override from .env (unify with backend/src/futuresboard/futures.db)
+        env_db_path = os.getenv("DB_PATH")
+        if env_db_path:
+            config_dict["DATABASE"] = pathlib.Path(env_db_path).resolve()
+        else:
+            # fallback to config_dir/futures.db if not in .env
+            config_dict["DATABASE"] = (config_dir / "futures.db").resolve()
+                
         # New: SYMBOLS from .env/JSON (comma-split if env str)
         env_symbols = os.getenv("SYMBOLS", "")
         if env_symbols:

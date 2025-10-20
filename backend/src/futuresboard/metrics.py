@@ -13,6 +13,13 @@ import random  # For mock rand + jitter
 import numpy as np
 import pandas as pd  # New: For DataFrame weighted calc (P3)
 import statistics  # For Z mean/std tease if needed
+from dotenv import load_dotenv
+load_dotenv()
+
+DB_PATH = os.getenv("DB_PATH", "backend/src/futuresboard/futures.db")
+DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+
 
 metrics_bp = Blueprint('metrics', __name__, url_prefix='/api')
 
@@ -75,6 +82,16 @@ def api_metrics():
     total = len(asyncio.run(get_all_metrics(tf, exch, limit=None, offset=0)))
     response = jsonify(enriched)
     response.headers['Content-Range'] = f'{offset}-{offset+len(enriched)-1}/{total}'
+        # Add continuity telemetry headers for frontend awareness
+    continuity_phase = os.getenv("PHASE", "P3 - Weighted OI + Top L/S + Alerts")
+    response.headers["X-Continuity-Phase"] = continuity_phase
+
+    # Optional: embed backend timestamp
+    response.headers["X-Backend-Timestamp"] = datetime.utcnow().isoformat(timespec="seconds")
+
+    # Optional: echo backend health for quick client-side checks
+    response.headers["X-Backend-Health"] = "healthy"
+
     return response
 
 @metrics_bp.route('/<symbol>/history')

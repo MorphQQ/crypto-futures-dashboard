@@ -24,8 +24,17 @@ logger = logging.getLogger(__name__)
 Base = declarative_base()  # Exported for Alembic env.py
 
 # ORM Session (try/finally safety for roadmap)
-cfg = Config.from_config_dir(pathlib.Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))) )  # root for config
-engine = create_engine(f'sqlite:///{cfg.DATABASE}')
+from dotenv import load_dotenv
+load_dotenv()
+
+DB_PATH = os.getenv("DB_PATH", "backend/src/futuresboard/futures.db")
+
+# Load config with env overrides
+cfg = Config.from_config_dir(pathlib.Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))))
+cfg.DATABASE = pathlib.Path(DB_PATH).resolve()
+
+engine = create_engine(f"sqlite:///{cfg.DATABASE}", echo=False, connect_args={"check_same_thread": False})
+
 SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 Session = SessionLocal
 
@@ -284,6 +293,8 @@ def save_metrics(metrics, timeframe='5m'):
             print(f"Merging {m['symbol']}/{timeframe}: oi={metric.oi_abs_usd}, ls={getattr(metric, f'global_ls_{timeframe}')}, Z={metric.z_ls}")
             session.merge(metric)
             saved_count += 1
+        if saved_count % 50 == 0:
+            session.flush()
         session.commit()
         logger.info(f"Bulk saved {saved_count} w/ deltas/CVD/Z tf={timeframe}")
         print(f"Saved {saved_count} - Total: {session.query(Metric).filter(Metric.timeframe == timeframe).count()}")

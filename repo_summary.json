@@ -1,0 +1,1577 @@
+﻿[
+    {
+        "Path":  "docker-compose.yaml",
+        "SizeKB":  0.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760779285061)\/",
+                          "DateTime":  "18 October 2025 14:51:25"
+                      },
+        "Ext":  ".yaml"
+    },
+    {
+        "Path":  "futures.db",
+        "SizeKB":  5064,
+        "LastWrite":  {
+                          "value":  "\/Date(1760959254436)\/",
+                          "DateTime":  "20 October 2025 16:50:54"
+                      },
+        "Ext":  ".db"
+    },
+    {
+        "Path":  "quant_blueprint.md",
+        "SizeKB":  0.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760953357682)\/",
+                          "DateTime":  "20 October 2025 15:12:37"
+                      },
+        "Ext":  ".md"
+    },
+    {
+        "Path":  "README.md",
+        "SizeKB":  0.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760962341491)\/",
+                          "DateTime":  "20 October 2025 17:42:21"
+                      },
+        "Ext":  ".md"
+    },
+    {
+        "Path":  "repo_summary.json",
+        "SizeKB":  0,
+        "LastWrite":  {
+                          "value":  "\/Date(1760964450528)\/",
+                          "DateTime":  "20 October 2025 18:17:30"
+                      },
+        "Ext":  ".json"
+    },
+    {
+        "Path":  "temp_db_query.py",
+        "SizeKB":  0.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760957314841)\/",
+                          "DateTime":  "20 October 2025 16:18:34"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  ".vscode\\settings.json",
+        "SizeKB":  0.6,
+        "LastWrite":  {
+                          "value":  "\/Date(1760789857021)\/",
+                          "DateTime":  "18 October 2025 17:47:37"
+                      },
+        "Ext":  ".json"
+    },
+    {
+        "Path":  "backend\\.env",
+        "SizeKB":  0.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760872602645)\/",
+                          "DateTime":  "19 October 2025 16:46:42"
+                      },
+        "Ext":  ".env"
+    },
+    {
+        "Path":  "backend\\add_columns.py",
+        "SizeKB":  0.9,
+        "LastWrite":  {
+                          "value":  "\/Date(1760521271975)\/",
+                          "DateTime":  "15 October 2025 15:11:11"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "backend\\alembic.ini",
+        "SizeKB":  4.7,
+        "LastWrite":  {
+                          "value":  "\/Date(1760511426317)\/",
+                          "DateTime":  "15 October 2025 12:27:06"
+                      },
+        "Ext":  ".ini"
+    },
+    {
+        "Path":  "backend\\alter_db.py",
+        "SizeKB":  1.2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760787164592)\/",
+                          "DateTime":  "18 October 2025 17:02:44"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "backend\\db_query.py",
+        "SizeKB":  1.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760957045453)\/",
+                          "DateTime":  "20 October 2025 16:14:05"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "backend\\futures.db",
+        "SizeKB":  180,
+        "LastWrite":  {
+                          "value":  "\/Date(1760842606155)\/",
+                          "DateTime":  "19 October 2025 08:26:46"
+                      },
+        "Ext":  ".db"
+    },
+    {
+        "Path":  "backend\\pyproject.toml",
+        "SizeKB":  0.3,
+        "LastWrite":  {
+                          "value":  "\/Date(1760361656479)\/",
+                          "DateTime":  "13 October 2025 18:50:56"
+                      },
+        "Ext":  ".toml"
+    },
+    {
+        "Path":  "backend\\README.md",
+        "SizeKB":  0.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760609431611)\/",
+                          "DateTime":  "16 October 2025 15:40:31"
+                      },
+        "Ext":  ".md"
+    },
+    {
+        "Path":  "backend\\requirements.txt",
+        "SizeKB":  0.2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760946495504)\/",
+                          "DateTime":  "20 October 2025 13:18:15"
+                      },
+        "Ext":  ".txt"
+    },
+    {
+        "Path":  "backend\\seed_metrics.py",
+        "SizeKB":  5.7,
+        "LastWrite":  {
+                          "value":  "\/Date(1760953809621)\/",
+                          "DateTime":  "20 October 2025 15:20:09"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "backend\\setup.py",
+        "SizeKB":  1.3,
+        "LastWrite":  {
+                          "value":  "\/Date(1760609422960)\/",
+                          "DateTime":  "16 October 2025 15:40:22"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "backend\\verify_db.py",
+        "SizeKB":  1.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760521216602)\/",
+                          "DateTime":  "15 October 2025 15:10:16"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "backend\\alembic\\env.py",
+        "SizeKB":  2.3,
+        "LastWrite":  {
+                          "value":  "\/Date(1760511194959)\/",
+                          "DateTime":  "15 October 2025 12:23:14"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "backend\\alembic\\README",
+        "SizeKB":  0,
+        "LastWrite":  {
+                          "value":  "\/Date(1760511001209)\/",
+                          "DateTime":  "15 October 2025 12:20:01"
+                      },
+        "Ext":  ""
+    },
+    {
+        "Path":  "backend\\alembic\\script.py.mako",
+        "SizeKB":  0.7,
+        "LastWrite":  {
+                          "value":  "\/Date(1760511001210)\/",
+                          "DateTime":  "15 October 2025 12:20:01"
+                      },
+        "Ext":  ".mako"
+    },
+    {
+        "Path":  "backend\\config\\config.json",
+        "SizeKB":  0.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760414380487)\/",
+                          "DateTime":  "14 October 2025 09:29:40"
+                      },
+        "Ext":  ".json"
+    },
+    {
+        "Path":  "backend\\config\\config.json.example",
+        "SizeKB":  0.3,
+        "LastWrite":  {
+                          "value":  "\/Date(1760361656478)\/",
+                          "DateTime":  "13 October 2025 18:50:56"
+                      },
+        "Ext":  ".example"
+    },
+    {
+        "Path":  "backend\\config\\futures.db",
+        "SizeKB":  260,
+        "LastWrite":  {
+                          "value":  "\/Date(1760787176497)\/",
+                          "DateTime":  "18 October 2025 17:02:56"
+                      },
+        "Ext":  ".db"
+    },
+    {
+        "Path":  "backend\\config\\futures_backup_2025-10-18.db",
+        "SizeKB":  260,
+        "LastWrite":  {
+                          "value":  "\/Date(1760787176497)\/",
+                          "DateTime":  "18 October 2025 17:02:56"
+                      },
+        "Ext":  ".db"
+    },
+    {
+        "Path":  "backend\\logs\\app.log",
+        "SizeKB":  0.6,
+        "LastWrite":  {
+                          "value":  "\/Date(1760684634793)\/",
+                          "DateTime":  "17 October 2025 12:33:54"
+                      },
+        "Ext":  ".log"
+    },
+    {
+        "Path":  "backend\\src\\futures.db",
+        "SizeKB":  32,
+        "LastWrite":  {
+                          "value":  "\/Date(1760529668330)\/",
+                          "DateTime":  "15 October 2025 17:31:08"
+                      },
+        "Ext":  ".db"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\app.py",
+        "SizeKB":  7.9,
+        "LastWrite":  {
+                          "value":  "\/Date(1760964364865)\/",
+                          "DateTime":  "20 October 2025 18:16:04"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\binance_ws_client.py",
+        "SizeKB":  1.9,
+        "LastWrite":  {
+                          "value":  "\/Date(1760366490268)\/",
+                          "DateTime":  "13 October 2025 20:11:30"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\blueprint.py",
+        "SizeKB":  50.2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760361656481)\/",
+                          "DateTime":  "13 October 2025 18:50:56"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\cli.py",
+        "SizeKB":  3.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760527142475)\/",
+                          "DateTime":  "15 October 2025 16:49:02"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\config.py",
+        "SizeKB":  6.3,
+        "LastWrite":  {
+                          "value":  "\/Date(1760870111716)\/",
+                          "DateTime":  "19 October 2025 16:05:11"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\db.py",
+        "SizeKB":  15.6,
+        "LastWrite":  {
+                          "value":  "\/Date(1760936061524)\/",
+                          "DateTime":  "20 October 2025 10:24:21"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\futures.db",
+        "SizeKB":  16,
+        "LastWrite":  {
+                          "value":  "\/Date(1760942562410)\/",
+                          "DateTime":  "20 October 2025 12:12:42"
+                      },
+        "Ext":  ".db"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\metrics.py",
+        "SizeKB":  20.6,
+        "LastWrite":  {
+                          "value":  "\/Date(1760959870619)\/",
+                          "DateTime":  "20 October 2025 17:01:10"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\scraper.py",
+        "SizeKB":  34.8,
+        "LastWrite":  {
+                          "value":  "\/Date(1760876111490)\/",
+                          "DateTime":  "19 October 2025 17:45:11"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\utils.py",
+        "SizeKB":  2.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760425157134)\/",
+                          "DateTime":  "14 October 2025 12:29:17"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\version.py",
+        "SizeKB":  0.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760608470720)\/",
+                          "DateTime":  "16 October 2025 15:24:30"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\wsgi.py",
+        "SizeKB":  0.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760361656485)\/",
+                          "DateTime":  "13 October 2025 18:50:56"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\__init__.py",
+        "SizeKB":  0.9,
+        "LastWrite":  {
+                          "value":  "\/Date(1760361656480)\/",
+                          "DateTime":  "13 October 2025 18:50:56"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\static\\favicon.ico",
+        "SizeKB":  15,
+        "LastWrite":  {
+                          "value":  "\/Date(1760361656482)\/",
+                          "DateTime":  "13 October 2025 18:50:56"
+                      },
+        "Ext":  ".ico"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\static\\favicon2.ico",
+        "SizeKB":  15,
+        "LastWrite":  {
+                          "value":  "\/Date(1760361656482)\/",
+                          "DateTime":  "13 October 2025 18:50:56"
+                      },
+        "Ext":  ".ico"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\static\\csv\\.placeholder",
+        "SizeKB":  0.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760361656482)\/",
+                          "DateTime":  "13 October 2025 18:50:56"
+                      },
+        "Ext":  ".placeholder"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\static\\js\\chartjs-chart-financial.js",
+        "SizeKB":  14.6,
+        "LastWrite":  {
+                          "value":  "\/Date(1760361656483)\/",
+                          "DateTime":  "13 October 2025 18:50:56"
+                      },
+        "Ext":  ".js"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\static\\js\\hammer.min.js",
+        "SizeKB":  20.3,
+        "LastWrite":  {
+                          "value":  "\/Date(1760361656483)\/",
+                          "DateTime":  "13 October 2025 18:50:56"
+                      },
+        "Ext":  ".js"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\static\\styles\\dashboard.css",
+        "SizeKB":  1.6,
+        "LastWrite":  {
+                          "value":  "\/Date(1760361656483)\/",
+                          "DateTime":  "13 October 2025 18:50:56"
+                      },
+        "Ext":  ".css"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\static\\styles\\sidebars.css",
+        "SizeKB":  1.9,
+        "LastWrite":  {
+                          "value":  "\/Date(1760361656483)\/",
+                          "DateTime":  "13 October 2025 18:50:56"
+                      },
+        "Ext":  ".css"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\templates\\base.html",
+        "SizeKB":  10.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760361656484)\/",
+                          "DateTime":  "13 October 2025 18:50:56"
+                      },
+        "Ext":  ".html"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\templates\\coin.html",
+        "SizeKB":  30.7,
+        "LastWrite":  {
+                          "value":  "\/Date(1760361656484)\/",
+                          "DateTime":  "13 October 2025 18:50:56"
+                      },
+        "Ext":  ".html"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\templates\\error.html",
+        "SizeKB":  0.4,
+        "LastWrite":  {
+                          "value":  "\/Date(1760361656484)\/",
+                          "DateTime":  "13 October 2025 18:50:56"
+                      },
+        "Ext":  ".html"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\templates\\history.html",
+        "SizeKB":  3.6,
+        "LastWrite":  {
+                          "value":  "\/Date(1760361656484)\/",
+                          "DateTime":  "13 October 2025 18:50:56"
+                      },
+        "Ext":  ".html"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\templates\\home.html",
+        "SizeKB":  9.4,
+        "LastWrite":  {
+                          "value":  "\/Date(1760361656484)\/",
+                          "DateTime":  "13 October 2025 18:50:56"
+                      },
+        "Ext":  ".html"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\templates\\positions.html",
+        "SizeKB":  4.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760361656485)\/",
+                          "DateTime":  "13 October 2025 18:50:56"
+                      },
+        "Ext":  ".html"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard\\templates\\projection.html",
+        "SizeKB":  5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760361656485)\/",
+                          "DateTime":  "13 October 2025 18:50:56"
+                      },
+        "Ext":  ".html"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard.egg-info\\dependency_links.txt",
+        "SizeKB":  0,
+        "LastWrite":  {
+                          "value":  "\/Date(1760874155438)\/",
+                          "DateTime":  "19 October 2025 17:12:35"
+                      },
+        "Ext":  ".txt"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard.egg-info\\entry_points.txt",
+        "SizeKB":  0.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760874155438)\/",
+                          "DateTime":  "19 October 2025 17:12:35"
+                      },
+        "Ext":  ".txt"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard.egg-info\\PKG-INFO",
+        "SizeKB":  0.9,
+        "LastWrite":  {
+                          "value":  "\/Date(1760874155437)\/",
+                          "DateTime":  "19 October 2025 17:12:35"
+                      },
+        "Ext":  ""
+    },
+    {
+        "Path":  "backend\\src\\futuresboard.egg-info\\requires.txt",
+        "SizeKB":  0.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760874155438)\/",
+                          "DateTime":  "19 October 2025 17:12:35"
+                      },
+        "Ext":  ".txt"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard.egg-info\\SOURCES.txt",
+        "SizeKB":  2.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760874155812)\/",
+                          "DateTime":  "19 October 2025 17:12:35"
+                      },
+        "Ext":  ".txt"
+    },
+    {
+        "Path":  "backend\\src\\futuresboard.egg-info\\top_level.txt",
+        "SizeKB":  0,
+        "LastWrite":  {
+                          "value":  "\/Date(1760874155439)\/",
+                          "DateTime":  "19 October 2025 17:12:35"
+                      },
+        "Ext":  ".txt"
+    },
+    {
+        "Path":  "backend\\src\\logs\\app.log",
+        "SizeKB":  3532.2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760964332582)\/",
+                          "DateTime":  "20 October 2025 18:15:32"
+                      },
+        "Ext":  ".log"
+    },
+    {
+        "Path":  "backend\\tests\\test_metrics.py",
+        "SizeKB":  0.4,
+        "LastWrite":  {
+                          "value":  "\/Date(1760871254342)\/",
+                          "DateTime":  "19 October 2025 16:24:14"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "config\\futures.db",
+        "SizeKB":  0,
+        "LastWrite":  {
+                          "value":  "\/Date(1760605901987)\/",
+                          "DateTime":  "16 October 2025 14:41:41"
+                      },
+        "Ext":  ".db"
+    },
+    {
+        "Path":  "docs\\api_guide.md",
+        "SizeKB":  1.2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760779205246)\/",
+                          "DateTime":  "18 October 2025 14:50:05"
+                      },
+        "Ext":  ".md"
+    },
+    {
+        "Path":  "docs\\code_gen.py",
+        "SizeKB":  3.2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760938870479)\/",
+                          "DateTime":  "20 October 2025 11:11:10"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "docs\\continuity_log.json",
+        "SizeKB":  5.7,
+        "LastWrite":  {
+                          "value":  "\/Date(1760964130521)\/",
+                          "DateTime":  "20 October 2025 18:12:10"
+                      },
+        "Ext":  ".json"
+    },
+    {
+        "Path":  "docs\\continuity_state.json",
+        "SizeKB":  0.8,
+        "LastWrite":  {
+                          "value":  "\/Date(1760964130528)\/",
+                          "DateTime":  "20 October 2025 18:12:10"
+                      },
+        "Ext":  ".json"
+    },
+    {
+        "Path":  "docs\\continuity_state.md",
+        "SizeKB":  1.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760964130527)\/",
+                          "DateTime":  "20 October 2025 18:12:10"
+                      },
+        "Ext":  ".md"
+    },
+    {
+        "Path":  "docs\\gen_blueprint.py",
+        "SizeKB":  3.4,
+        "LastWrite":  {
+                          "value":  "\/Date(1760955276682)\/",
+                          "DateTime":  "20 October 2025 15:44:36"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "docs\\gen_tracker.py",
+        "SizeKB":  3.2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760948580822)\/",
+                          "DateTime":  "20 October 2025 13:53:00"
+                      },
+        "Ext":  ".py"
+    },
+    {
+        "Path":  "docs\\project_data.json",
+        "SizeKB":  947.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760938873562)\/",
+                          "DateTime":  "20 October 2025 11:11:13"
+                      },
+        "Ext":  ".json"
+    },
+    {
+        "Path":  "docs\\quant_blueprint.md",
+        "SizeKB":  7.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760955325086)\/",
+                          "DateTime":  "20 October 2025 15:45:25"
+                      },
+        "Ext":  ".md"
+    },
+    {
+        "Path":  "docs\\quant_progress_tracker.md",
+        "SizeKB":  3.4,
+        "LastWrite":  {
+                          "value":  "\/Date(1760962230172)\/",
+                          "DateTime":  "20 October 2025 17:40:30"
+                      },
+        "Ext":  ".md"
+    },
+    {
+        "Path":  "docs\\README.md",
+        "SizeKB":  2.4,
+        "LastWrite":  {
+                          "value":  "\/Date(1760962356222)\/",
+                          "DateTime":  "20 October 2025 17:42:36"
+                      },
+        "Ext":  ".md"
+    },
+    {
+        "Path":  "docs\\roadmap.md",
+        "SizeKB":  6,
+        "LastWrite":  {
+                          "value":  "\/Date(1760786860173)\/",
+                          "DateTime":  "18 October 2025 16:57:40"
+                      },
+        "Ext":  ".md"
+    },
+    {
+        "Path":  "docs\\testing_harness.md",
+        "SizeKB":  1.3,
+        "LastWrite":  {
+                          "value":  "\/Date(1760779397220)\/",
+                          "DateTime":  "18 October 2025 14:53:17"
+                      },
+        "Ext":  ".md"
+    },
+    {
+        "Path":  "docs\\z_trend.png",
+        "SizeKB":  12.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760961100413)\/",
+                          "DateTime":  "20 October 2025 17:21:40"
+                      },
+        "Ext":  ".png"
+    },
+    {
+        "Path":  "frontend\\eslint.config.js",
+        "SizeKB":  0.7,
+        "LastWrite":  {
+                          "value":  "\/Date(1760454011369)\/",
+                          "DateTime":  "14 October 2025 20:30:11"
+                      },
+        "Ext":  ".js"
+    },
+    {
+        "Path":  "frontend\\index.html",
+        "SizeKB":  0.3,
+        "LastWrite":  {
+                          "value":  "\/Date(1760605952077)\/",
+                          "DateTime":  "16 October 2025 14:42:32"
+                      },
+        "Ext":  ".html"
+    },
+    {
+        "Path":  "frontend\\package-lock.json",
+        "SizeKB":  197.2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760715455419)\/",
+                          "DateTime":  "17 October 2025 21:07:35"
+                      },
+        "Ext":  ".json"
+    },
+    {
+        "Path":  "frontend\\package.json",
+        "SizeKB":  1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760715365669)\/",
+                          "DateTime":  "17 October 2025 21:06:05"
+                      },
+        "Ext":  ".json"
+    },
+    {
+        "Path":  "frontend\\postcss.config.js",
+        "SizeKB":  0.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760606788667)\/",
+                          "DateTime":  "16 October 2025 14:56:28"
+                      },
+        "Ext":  ".js"
+    },
+    {
+        "Path":  "frontend\\README.md",
+        "SizeKB":  1.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760454011403)\/",
+                          "DateTime":  "14 October 2025 20:30:11"
+                      },
+        "Ext":  ".md"
+    },
+    {
+        "Path":  "frontend\\tailwind.config.js",
+        "SizeKB":  0.3,
+        "LastWrite":  {
+                          "value":  "\/Date(1760606779035)\/",
+                          "DateTime":  "16 October 2025 14:56:19"
+                      },
+        "Ext":  ".js"
+    },
+    {
+        "Path":  "frontend\\vite.config.js",
+        "SizeKB":  0.2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760454011377)\/",
+                          "DateTime":  "14 October 2025 20:30:11"
+                      },
+        "Ext":  ".js"
+    },
+    {
+        "Path":  "frontend\\public\\vite.svg",
+        "SizeKB":  1.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760454011425)\/",
+                          "DateTime":  "14 October 2025 20:30:11"
+                      },
+        "Ext":  ".svg"
+    },
+    {
+        "Path":  "frontend\\src\\App.css",
+        "SizeKB":  0.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830332)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".css"
+    },
+    {
+        "Path":  "frontend\\src\\App.jsx",
+        "SizeKB":  14.2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760960339141)\/",
+                          "DateTime":  "20 October 2025 17:08:59"
+                      },
+        "Ext":  ".jsx"
+    },
+    {
+        "Path":  "frontend\\src\\index.css",
+        "SizeKB":  1.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760454011357)\/",
+                          "DateTime":  "14 October 2025 20:30:11"
+                      },
+        "Ext":  ".css"
+    },
+    {
+        "Path":  "frontend\\src\\main.jsx",
+        "SizeKB":  0.2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760454011400)\/",
+                          "DateTime":  "14 October 2025 20:30:11"
+                      },
+        "Ext":  ".jsx"
+    },
+    {
+        "Path":  "frontend\\src\\assets\\react.svg",
+        "SizeKB":  4,
+        "LastWrite":  {
+                          "value":  "\/Date(1760454011416)\/",
+                          "DateTime":  "14 October 2025 20:30:11"
+                      },
+        "Ext":  ".svg"
+    },
+    {
+        "Path":  "frontend\\src\\components\\Badge.tsx",
+        "SizeKB":  1.7,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830334)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\Button.tsx",
+        "SizeKB":  4.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830334)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\Calendar.tsx",
+        "SizeKB":  10.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830334)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\DatePicker.tsx",
+        "SizeKB":  34.3,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830334)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\Dialog.tsx",
+        "SizeKB":  3.8,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830335)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\Drawer.tsx",
+        "SizeKB":  5.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830335)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\Dropdown.tsx",
+        "SizeKB":  13,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830335)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\Input.tsx",
+        "SizeKB":  4.9,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830335)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\Label.tsx",
+        "SizeKB":  0.8,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830335)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\LineChart.tsx",
+        "SizeKB":  25.7,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830336)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\Popover.tsx",
+        "SizeKB":  3.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830336)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\ProgressBar.tsx",
+        "SizeKB":  2.8,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830336)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\RadioCard.tsx",
+        "SizeKB":  3.3,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830336)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\Select.tsx",
+        "SizeKB":  8.2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830336)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\ui\\icons\\ArrowAnimated.tsx",
+        "SizeKB":  0.6,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830337)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\ui\\icons\\TremorPlaceholder.tsx",
+        "SizeKB":  4.6,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830337)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\ui\\navigation\\DropdownUserProfile.tsx",
+        "SizeKB":  3.9,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830337)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\ui\\navigation\\MobileSidebar.tsx",
+        "SizeKB":  4.7,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830337)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\ui\\navigation\\ModalAddWorkspace.tsx",
+        "SizeKB":  6.6,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830338)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\ui\\navigation\\sidebar.tsx",
+        "SizeKB":  4.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830338)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\ui\\navigation\\SidebarWorkspacesDropdown.tsx",
+        "SizeKB":  7.9,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830338)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\ui\\navigation\\UserProfile.tsx",
+        "SizeKB":  2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830338)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\ui\\overview\\DashboardCategoryBarCard.tsx",
+        "SizeKB":  2.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830339)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\ui\\overview\\DashboardChartCard.tsx",
+        "SizeKB":  4.8,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830339)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\ui\\overview\\DashboardFilterbar.tsx",
+        "SizeKB":  1.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830339)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "frontend\\src\\components\\ui\\overview\\DashboardProgressBarCard.tsx",
+        "SizeKB":  2.2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830339)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\.eslintrc.json",
+        "SizeKB":  0,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830323)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".json"
+    },
+    {
+        "Path":  "temp-template\\.prettierrc",
+        "SizeKB":  0.2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830324)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".prettierrc"
+    },
+    {
+        "Path":  "temp-template\\LICENSE.md",
+        "SizeKB":  9.7,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830325)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".md"
+    },
+    {
+        "Path":  "temp-template\\next.config.mjs",
+        "SizeKB":  0.3,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830325)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".mjs"
+    },
+    {
+        "Path":  "temp-template\\package.json",
+        "SizeKB":  1.4,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830325)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".json"
+    },
+    {
+        "Path":  "temp-template\\pnpm-lock.yaml",
+        "SizeKB":  189.2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830326)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".yaml"
+    },
+    {
+        "Path":  "temp-template\\postcss.config.mjs",
+        "SizeKB":  0.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830326)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".mjs"
+    },
+    {
+        "Path":  "temp-template\\README.md",
+        "SizeKB":  2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830325)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".md"
+    },
+    {
+        "Path":  "temp-template\\tailwind.config.ts",
+        "SizeKB":  2.3,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830341)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".ts"
+    },
+    {
+        "Path":  "temp-template\\tsconfig.json",
+        "SizeKB":  0.7,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830341)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".json"
+    },
+    {
+        "Path":  "temp-template\\.vscode\\settings.json",
+        "SizeKB":  0.3,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830324)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".json"
+    },
+    {
+        "Path":  "temp-template\\public\\DatabaseLogo.tsx",
+        "SizeKB":  5.9,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830327)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\public\\og_github.jpg",
+        "SizeKB":  633.8,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830330)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".jpg"
+    },
+    {
+        "Path":  "temp-template\\src\\app\\favicon.ico",
+        "SizeKB":  278.8,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830331)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".ico"
+    },
+    {
+        "Path":  "temp-template\\src\\app\\globals.css",
+        "SizeKB":  0.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830332)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".css"
+    },
+    {
+        "Path":  "temp-template\\src\\app\\layout.tsx",
+        "SizeKB":  1.6,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830332)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\app\\not-found.tsx",
+        "SizeKB":  1.2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830332)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\app\\opengraph-image.png",
+        "SizeKB":  149,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830333)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".png"
+    },
+    {
+        "Path":  "temp-template\\src\\app\\siteConfig.ts",
+        "SizeKB":  0.4,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830333)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".ts"
+    },
+    {
+        "Path":  "temp-template\\src\\app\\(main)\\layout.tsx",
+        "SizeKB":  0.3,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830330)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\app\\(main)\\details\\page.tsx",
+        "SizeKB":  1.3,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830330)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\app\\(main)\\overview\\page.tsx",
+        "SizeKB":  5.4,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830331)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\app\\settings\\layout.tsx",
+        "SizeKB":  0.3,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830333)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\app\\settings\\page.tsx",
+        "SizeKB":  1.2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830333)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\Badge.tsx",
+        "SizeKB":  1.7,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830334)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\Button.tsx",
+        "SizeKB":  4.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830334)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\Calendar.tsx",
+        "SizeKB":  10.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830334)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\DatePicker.tsx",
+        "SizeKB":  34.3,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830334)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\Dialog.tsx",
+        "SizeKB":  3.8,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830335)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\Drawer.tsx",
+        "SizeKB":  5.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830335)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\Dropdown.tsx",
+        "SizeKB":  13,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830335)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\Input.tsx",
+        "SizeKB":  4.9,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830335)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\Label.tsx",
+        "SizeKB":  0.8,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830335)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\LineChart.tsx",
+        "SizeKB":  25.7,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830336)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\Popover.tsx",
+        "SizeKB":  3.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830336)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\ProgressBar.tsx",
+        "SizeKB":  2.8,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830336)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\RadioCard.tsx",
+        "SizeKB":  3.3,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830336)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\Select.tsx",
+        "SizeKB":  8.2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830336)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\ui\\icons\\ArrowAnimated.tsx",
+        "SizeKB":  0.6,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830337)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\ui\\icons\\TremorPlaceholder.tsx",
+        "SizeKB":  4.6,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830337)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\ui\\navigation\\DropdownUserProfile.tsx",
+        "SizeKB":  3.9,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830337)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\ui\\navigation\\MobileSidebar.tsx",
+        "SizeKB":  4.7,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830337)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\ui\\navigation\\ModalAddWorkspace.tsx",
+        "SizeKB":  6.6,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830338)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\ui\\navigation\\sidebar.tsx",
+        "SizeKB":  4.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830338)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\ui\\navigation\\SidebarWorkspacesDropdown.tsx",
+        "SizeKB":  7.9,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830338)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\ui\\navigation\\UserProfile.tsx",
+        "SizeKB":  2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830338)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\ui\\overview\\DashboardCategoryBarCard.tsx",
+        "SizeKB":  2.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830339)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\ui\\overview\\DashboardChartCard.tsx",
+        "SizeKB":  4.8,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830339)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\ui\\overview\\DashboardFilterbar.tsx",
+        "SizeKB":  1.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830339)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\components\\ui\\overview\\DashboardProgressBarCard.tsx",
+        "SizeKB":  2.2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830339)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\data\\data.ts",
+        "SizeKB":  11.1,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830339)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".ts"
+    },
+    {
+        "Path":  "temp-template\\src\\data\\generateData.js",
+        "SizeKB":  3.5,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830340)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".js"
+    },
+    {
+        "Path":  "temp-template\\src\\data\\overview-data.ts",
+        "SizeKB":  91.9,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830340)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".ts"
+    },
+    {
+        "Path":  "temp-template\\src\\data\\schema.ts",
+        "SizeKB":  0.3,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830340)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".ts"
+    },
+    {
+        "Path":  "temp-template\\src\\lib\\chartUtils.ts",
+        "SizeKB":  2.9,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830340)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".ts"
+    },
+    {
+        "Path":  "temp-template\\src\\lib\\useOnWindowResize.tsx",
+        "SizeKB":  0.4,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830341)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".tsx"
+    },
+    {
+        "Path":  "temp-template\\src\\lib\\utils.ts",
+        "SizeKB":  2,
+        "LastWrite":  {
+                          "value":  "\/Date(1760619830341)\/",
+                          "DateTime":  "16 October 2025 18:33:50"
+                      },
+        "Ext":  ".ts"
+    }
+]
