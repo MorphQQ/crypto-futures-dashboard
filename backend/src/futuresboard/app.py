@@ -1,304 +1,334 @@
+# backend/src/futuresboard/app.py
 from __future__ import annotations
 
 import json
 import logging
 import pathlib
-import sqlite3
-from logging.handlers import RotatingFileHandler
-
-import argparse
 import os
+import argparse
+import time
 from datetime import datetime
-from dotenv import load_dotenv  # .env load (API_KEY, AUTO_SCRAPE_INTERVAL)
-import time  # For continuity sync loop sleep
+from logging.handlers import RotatingFileHandler
+from dotenv import load_dotenv
+import sys
 
-# === Phase 3 unified environment setup ===
+# Load env early
 load_dotenv()
-DB_PATH = os.getenv("DB_PATH", "backend/src/futuresboard/futures.db")
-CONTINUITY_DOCS = os.getenv("CONTINUITY_DOCS", "docs/continuity_state.json")
+
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]  # repo root
+LOG_DIR = (REPO_ROOT / "logs").resolve()
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+DB_PATH = os.getenv("DB_PATH", str(REPO_ROOT / "backend" / "src" / "futuresboard" / "futures.db"))
+CONTINUITY_DOCS = os.getenv("CONTINUITY_DOCS", str(REPO_ROOT / "docs" / "continuity_state.json"))
 PHASE = os.getenv("PHASE", "P3 - Weighted OI + Top L/S + Alerts")
+AUTO_SCRAPE_INTERVAL = int(os.getenv("INTERVAL", os.getenv("AUTO_SCRAPE_INTERVAL", "30")))
 
-# Sys.path hack for relative imports in script mode (Pylance/VSCode resolves – top before imports)
-from sys import path
-path.append(os.path.dirname(os.path.dirname(__file__)))  # Add src parent (backend)
+from sys import path as sys_path
+sys_path.append(str(pathlib.Path(__file__).parent.parent))  # add backend/src
 
-from flask import Flask, redirect, request, render_template, current_app, jsonify  # Added jsonify
-from flask_cors import CORS  # For frontend fetches
-from flask_socketio import SocketIO  # WS for Phase 1 refreshes
+from flask import Flask, redirect, request, jsonify
+from flask_cors import CORS
+from flask_socketio import SocketIO
 
-# Relative imports (fix absolute fail; from .)
-from . import blueprint
-from . import db
+# local imports
+from . import db as db_mod
 from .config import Config
-from .db import get_latest_metrics, get_metrics_by_symbol, Metric  # Relative: Metric for cols serialize
-from .metrics import metrics_bp  # Relative
 
-socketio = None  # Module-level export for scraper import (set in init_app)
+# logging
+logger = logging.getLogger("futuresboard")
+logger.setLevel(logging.INFO)
+file_handler = RotatingFileHandler(str(LOG_DIR / "app.log"), maxBytes=10 * 1024 * 1024, backupCount=3)
+file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]"))
+logger.addHandler(file_handler)
 
+socketio: SocketIO | None = None  # exported below if started
+
+def serialize_metric_row(m):
+    """
+    Converts ORM Metric object or sqlite3.Row to plain dict for JSON output.
+    """
+    try:
+        # ORM object
+        if hasattr(m, "__dict__"):
+            data = {k: v for k, v in m.__dict__.items() if not k.startswith("_")}
+        # sqlite3.Row
+        elif isinstance(m, dict):
+            data = m
+        elif hasattr(m, "keys"):  # sqlite3.Row-like
+            data = {k: m[k] for k in m.keys()}
+        else:
+            return {}
+
+        # Convert timestamp to ISO string if needed
+        if "timestamp" in data and data["timestamp"] is not None:
+            if hasattr(data["timestamp"], "isoformat"):
+                data["timestamp"] = data["timestamp"].isoformat()
+        return data
+    except Exception as e:
+        print(f"[WARN] serialize_metric_row failed: {e}")
+        return {}
 
 def clear_trailing():
-    rp = request.path 
-    if rp != "/" and rp.endswith("/") and not rp.startswith('/socket.io'):
+    # remove trailing slash except for socket.io paths
+    rp = request.path
+    if rp != "/" and rp.endswith("/") and not rp.startswith("/socket.io"):
         return redirect(rp[:-1])
 
-
-def init_app(config: Config | None = None):
-    global socketio  # Set module-level
+def init_app(config: Config | str | None = None):
+    print("[DEBUG] init_app() start")
+    global socketio
+    app = Flask(__name__, static_folder=None)
+    print("[DEBUG] Flask app created")
+    # config handling: string path, Config instance, or default object
     if config is None:
-        config = Config.from_config_dir(pathlib.Path.cwd())
+        try:
+            config = Config.from_config_dir(pathlib.Path.cwd() / "config")
+        except Exception:
+            config = None
 
-    app = Flask(__name__)
-    
-    # Config load: Handle path str or Config object
-    if isinstance(config, str):  # Raw path str
-        with open(config, 'r') as f:
-            config_data = json.load(f)
-        app.config.from_mapping(**config_data)
-    elif hasattr(config, 'path'):  # Config with path attr
-        with open(config.path, 'r') as f:
-            config_data = json.load(f)
-        app.config.from_mapping(**config_data)
-    else:  # Config object
+    if isinstance(config, str):
+        with open(config, "r", encoding="utf-8") as f:
+            app.config.from_mapping(**json.load(f))
+    elif hasattr(config, "to_dict"):
+        app.config.from_mapping(**config.to_dict())
+    elif config is not None:
         app.config.from_object(config)
-    
-    # Ensure defaults if missing (post-load)
-    if 'symbols' not in app.config:
-        app.config['symbols'] = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT']
-    if 'API_BASE_URL' not in app.config:
-        app.config['API_BASE_URL'] = 'https://fapi.binance.com'
-    app.config['sandbox'] = app.config.get('TEST_MODE', False)  # Map: false=live, true=sandbox
-    
-    # Logging setup (post-app; propagate to child loggers scraper/metrics/db)
-    log_dir = os.path.join(os.path.dirname(__file__), '..', 'logs')  # backend/logs
-    os.makedirs(log_dir, exist_ok=True)
-    file_handler = RotatingFileHandler(os.path.join(log_dir, 'app.log'), maxBytes=10*1024*1024, backupCount=3)
-    file_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
-    file_handler.setLevel(logging.INFO)
-    logger = logging.getLogger(__name__)
-    logger.addHandler(file_handler)
-    logger.setLevel(logging.INFO)
+    else:
+        # minimal defaults
+        app.config["symbols"] = os.getenv("SYMBOLS", "BTCUSDT,ETHUSDT,SOLUSDT").split(",")
+        app.config["API_BASE_URL"] = os.getenv("API_BASE_URL", "https://fapi.binance.com")
+        app.config["TEST_MODE"] = os.getenv("TEST_MODE", "false").lower() == "true"
 
-    # Root propagate (capture child loggers)
-    root_logger = logging.getLogger()
-    root_logger.addHandler(file_handler)
-    root_logger.setLevel(logging.INFO)
-    root_logger.propagate = True
-    app.logger.addHandler(file_handler)
-    app.logger.setLevel(logging.INFO)
+    # ensure a few keys
+    app.config.setdefault("symbols", ["BTCUSDT", "ETHUSDT", "SOLUSDT"])
+    app.config.setdefault("API_BASE_URL", "https://fapi.binance.com")
+    app.config.setdefault("TEST_MODE", False)
+
+    # logging integration
+    app.logger.handlers.clear()
     app.logger.propagate = True
+    app.logger.setLevel(logging.INFO)
+    app.logger.addHandler(file_handler)
 
-    print("Logging setup complete - check backend/logs/app.log")  # Test entry
-    
-    app.url_map.strict_slashes = False
-    db.init_app(app)
-    app.before_request(clear_trailing)
-    app.register_blueprint(blueprint.app)
-    
-    # Add CORS early for all routes
-    CORS(app, origins=['http://localhost:5173'])  # Frontend allowed
+    # CORS (local only)
+    CORS(app, origins=["http://localhost:5173"])
 
-    # New: History routes (for charts/frontend) - early, no cycle
-    @app.route('/api/metrics/history')
-    def api_metrics_history():
-        limit = request.args.get('limit', 50, type=int)
-        data = get_latest_metrics(limit)
-        # Clean JSON serialize (cols only; no '_sa_instance_state')
-        serialized = []
-        for row in data:
-            row_dict = {col.name: getattr(row, col.name) for col in row.__table__.columns}
-            row_dict['time'] = row.timestamp.timestamp() if row.timestamp else 0  # Unix s fallback
-            serialized.append(row_dict)
-        return jsonify(serialized)  # [ {'time': 1760764607.87, 'price': 69163.63, 'global_ls_5m': 1.82, ...} ]
+    # DB init
+    db_mod.init_app(app)
+    print("[DEBUG] DB initialized")
 
-    @app.route('/api/metrics/<symbol>/history')
-    def api_symbol_history(symbol):
-        tf = request.args.get('tf', '5m')  # Default '5m' string (no 0)
-        limit = request.args.get('limit', 24, type=int)  # Hourly default
-        data = get_metrics_by_symbol(symbol, limit)  # List[Metric]
-        # Clean JSON serialize (cols only; no '_sa_instance_state')
-        serialized = []
-        for row in data:
-            row_dict = {col.name: getattr(row, col.name) for col in row.__table__.columns}
-            row_dict['time'] = row.timestamp.timestamp() if row.timestamp else 0  # Unix s fallback
-            serialized.append(row_dict)
-        return jsonify(serialized)  # [ {'time': 1760764607.87, 'price': 69163.63, 'global_ls_5m': 1.82, ...} ]
-
+    # small helper: health route
     @app.route("/health")
     def health():
-        state_path = CONTINUITY_DOCS
-        state_data = {}
+        state = {}
         try:
-            if os.path.exists(state_path):
-                with open(state_path, "r", encoding="utf-8") as f:
-                    state_data = json.load(f)
+            if os.path.exists(CONTINUITY_DOCS):
+                with open(CONTINUITY_DOCS, "r", encoding="utf-8") as f:
+                    state = json.load(f)
         except Exception as e:
-            state_data = {"error": f"Could not read state: {str(e)}"}
-
-        response = {
+            app.logger.warning(f"Failed reading continuity state: {e}")
+        resp = {
             "status": "healthy",
-            "timestamp": datetime.now().isoformat(timespec="seconds"),
+            "timestamp": datetime.utcnow().isoformat(timespec="seconds"),
             "version": "v0.3.3",
             "continuity": {
-                "phase": state_data.get("phase", PHASE),
-                "uptimePct": state_data.get("uptimePct", 0),
-                "backend": state_data.get("backend", "unknown"),
-                "last_sync": state_data.get("timestamp", "N/A"),
+                "phase": state.get("phase", PHASE),
+                "uptimePct": state.get("uptimePct", 0),
+                "backend": state.get("backend", "unknown"),
+                "last_sync": state.get("timestamp", "N/A"),
             },
         }
-        return jsonify(response)
-        
-    # Lazy metrics import + route add (breaks cycle: post-app init)
-    from .metrics import add_metrics_route, metrics_bp  # Relative: Import here + metrics_bp for register
-    add_metrics_route(app)
+        return jsonify(resp)
 
-    # Register metrics_bp with prefix (for /api/metrics, /api/health, /api/<symbol>/history)
-    app.register_blueprint(metrics_bp, url_prefix='/api')  # Prefix /api (metrics_bp routes '/' → /api/metrics)
+    # import metrics blueprint lazily (avoids import cycles)
+    try:
+        print("[DEBUG] Importing metrics blueprint...")
+        from .metrics import metrics_bp, add_metrics_route  # type: ignore
+        print("[DEBUG] Metrics module imported")
+        add_metrics_route(app)
+        print("[DEBUG] add_metrics_route() executed")
+        app.register_blueprint(metrics_bp, url_prefix="/api")
+        print("[DEBUG] Blueprint registered successfully")
+    except Exception as e:
+        print("[ERROR] Failed to register metrics blueprint:", e)
+        import traceback; traceback.print_exc()
+        return None
 
-    # Init SocketIO (Phase 1 WS for metrics_update)
-    socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)  # * for dev; restrict prod
+    # socket io initialization:
+    # prefer eventlet/gevent if installed, otherwise fallback to threading mode
+    async_mode = None
+    try:
+        import eventlet  # type: ignore
+        async_mode = "eventlet"
+    except Exception:
+        try:
+            import gevent  # type: ignore
+            async_mode = "gevent"
+        except Exception:
+            async_mode = "threading"
 
-    # Lazy scraper import + auto_scrape (breaks cycle: after app setup)
-    if not config.DISABLE_AUTO_SCRAPE:
-        from . import scraper  # Relative: Import here (post-app init)
-        scraper.auto_scrape(app)
+    socketio = SocketIO(app, cors_allowed_origins="http://localhost:5173", async_mode=async_mode, logger=False, engineio_logger=False)
 
-    #print(app.url_map)  # Debug: Show all routes (expect /health GET)
-        import threading
+    # scraper import + auto start (if enabled)
+    disable_auto = os.getenv("DISABLE_AUTO_SCRAPE", "false").lower() == "true"
+    if not disable_auto:
+        from . import scraper  # type: ignore
+        # Prefer socketio.start_background_task for engines that support it (integrates with event loop)
+        try:
+            if socketio and hasattr(socketio, "start_background_task"):
+                socketio.start_background_task(scraper.auto_scrape, app)
+            else:
+                import threading
+                threading.Thread(target=scraper.auto_scrape, args=(app,), daemon=True).start()
+            app.logger.info("Started scraper background task")
+        except Exception as e:
+            app.logger.warning(f"Failed to start scraper background task: {e}")
 
+    # continuity sync loop: write small machine-readable state every 5 minutes
     def continuity_sync_loop():
-        """
-        Continuity Sync Loop:
-        Writes docs/continuity_state.json and docs/continuity_log.json every 5 minutes,
-        tracking uptime percentage and detecting downtime gaps between runs.
-        """
-        phase = os.getenv("PHASE", "P3 - Weighted OI + Top L/S + Alerts")
-        state_file = os.path.join(os.path.dirname(__file__), "../../../docs/continuity_state.json")
-        log_file = os.path.join(os.path.dirname(__file__), "../../../docs/continuity_log.json")
-        os.makedirs(os.path.dirname(state_file), exist_ok=True)
-
+        from .db import get_latest_metrics
+        state_file = pathlib.Path(CONTINUITY_DOCS)
+        state_file.parent.mkdir(parents=True, exist_ok=True)
+        log_file = state_file.parent / "continuity_log.json"
         start_time = time.time()
         total_runtime = 0.0
         downtime = 0.0
-        last_sync_time = None
+        last_ts = None
 
-        # Load previous state (to maintain continuity between restarts)
-        if os.path.exists(state_file):
+        # load previous
+        if state_file.exists():
             try:
-                with open(state_file, "r", encoding="utf-8") as f:
-                    prev_state = json.load(f)
-                    total_runtime = prev_state.get("total_runtime", 0.0)
-                    downtime = prev_state.get("downtime", 0.0)
-                    last_sync_time = prev_state.get("timestamp")
-            except Exception:
-                pass
-
-        # Check if downtime occurred since last run
-        if last_sync_time:
-            try:
-                last_dt = datetime.fromisoformat(last_sync_time)
-                gap_sec = (datetime.now() - last_dt).total_seconds()
-                if gap_sec > 600:  # >10 minutes gap considered downtime
-                    downtime += gap_sec
-                    print(f"[Continuity] Downtime gap detected: {gap_sec:.0f}s added")
+                p = json.loads(state_file.read_text(encoding="utf-8"))
+                total_runtime = p.get("total_runtime", 0.0)
+                downtime = p.get("downtime", 0.0)
+                last_ts = p.get("timestamp")
             except Exception:
                 pass
 
         while True:
             try:
-                now = datetime.now()
+                now = datetime.utcnow()
                 now_str = now.isoformat(timespec="seconds")
-                uptime_sec = time.time() - start_time
-                total_runtime += uptime_sec
+                elapsed = time.time() - start_time
+                total_runtime += elapsed
+                # simple health: DB has at least one metric recently
+                db_ok = False
+                try:
+                    recent = get_latest_metrics(limit=1)
+                    db_ok = len(recent) > 0
+                except Exception:
+                    db_ok = False
 
-                # Calculate uptime percentage
-                uptimePct = 0.0
+                uptime_pct = 0.0
                 if total_runtime > 0:
-                    uptimePct = max(0, min(100, ((total_runtime - downtime) / total_runtime) * 100))
+                    uptime_pct = max(0.0, min(100.0, ((total_runtime - downtime) / total_runtime) * 100.0))
 
                 state = {
                     "timestamp": now_str,
-                    "phase": phase,
-                    "backend": "healthy",
-                    "uptimePct": round(uptimePct, 2),
+                    "phase": PHASE,
+                    "backend": "healthy" if db_ok else "unhealthy",
+                    "uptimePct": round(uptime_pct, 2),
                     "total_runtime": round(total_runtime, 2),
                     "downtime": round(downtime, 2),
-                    "status": "active"
+                    "status": "active" if db_ok else "degraded",
                 }
 
-                # Write state file
-                with open(state_file, "w", encoding="utf-8") as f:
-                    json.dump(state, f, indent=2)
+                state_file.write_text(json.dumps(state, indent=2), encoding="utf-8")
 
-                # Load and append continuity log
+                # append log (keeps last 100)
                 logs = []
-                if os.path.exists(log_file):
+                if log_file.exists():
                     try:
-                        with open(log_file, "r", encoding="utf-8") as f:
-                            logs = json.load(f)
+                        logs = json.loads(log_file.read_text(encoding="utf-8"))
                     except Exception:
                         logs = []
-
-                # Check timestamp gap between last and current
-                if logs:
-                    try:
-                        prev_ts = datetime.fromisoformat(logs[-1]["timestamp"])
-                        gap = (now - prev_ts).total_seconds()
-                        if gap > 600:  # >10 minutes since last log
-                            downtime += gap
-                            state["downtime"] = round(downtime, 2)
-                            print(f"[Continuity] Gap {gap:.0f}s detected — added to downtime")
-                    except Exception:
-                        pass
-
                 logs.append(state)
-                logs = logs[-100:]  # Keep latest 100 entries
-                with open(log_file, "w", encoding="utf-8") as f:
-                    json.dump(logs, f, indent=2)
+                logs = logs[-100:]
+                log_file.write_text(json.dumps(logs, indent=2), encoding="utf-8")
 
-                app.logger.info(
-                    f"[Continuity] Sync updated at {now_str} phase={phase} uptime={state['uptimePct']}% downtime={state['downtime']}"
-                )
-
+                app.logger.info(f"[Continuity] Sync updated at {now_str} phase={PHASE} uptime={state['uptimePct']}% backend={state['backend']}")
                 start_time = time.time()
-
             except Exception as e:
-                app.logger.warning(f"[Continuity] Sync loop error: {e}")
+                app.logger.warning(f"[Continuity] loop error: {e}")
+            time.sleep(300)
 
-            time.sleep(300)  # Every 5 minutes
+    # start continuity sync using socketio bg task where available
+    try:
+        if socketio and hasattr(socketio, "start_background_task"):
+            socketio.start_background_task(continuity_sync_loop)
+        else:
+            import threading
+            threading.Thread(target=continuity_sync_loop, daemon=True).start()
+        app.logger.info("Continuity sync loop started")
+    except Exception as e:
+        app.logger.warning(f"Continuity sync failed to start: {e}")
 
-    # Start continuity background sync
-    threading.Thread(target=continuity_sync_loop, daemon=True).start()
-    app.logger.info("Continuity sync loop started")
+    # remove trailing slash behavior
+    app.before_request(clear_trailing)
 
+     # ================================
+    # FIXED: Metrics history endpoints
+    # ================================
+
+    from .db import get_latest_metrics, get_metrics_by_symbol
+
+    @app.route('/api/metrics/history')
+    def api_metrics_history():
+        limit = request.args.get('limit', 100, type=int)
+        tf = request.args.get('tf', None, type=str)
+
+        try:
+            rows = get_latest_metrics(limit=limit)
+            serialized = [serialize_metric_row(m) for m in rows if m]
+            return jsonify(serialized)
+        except Exception as e:
+            app.logger.warning(f"[API] /metrics/history failed: {e}")
+            import traceback; traceback.print_exc()
+            return jsonify([]), 500
+
+
+    @app.route('/api/metrics/<symbol>/history')
+    def api_symbol_history(symbol):
+        limit = request.args.get('limit', 100, type=int)
+        tf = request.args.get('tf', None, type=str)
+
+        try:
+            rows = get_metrics_by_symbol(symbol, limit=limit)
+            serialized = [serialize_metric_row(m) for m in rows if m]
+            return jsonify(serialized)
+        except Exception as e:
+            app.logger.warning(f"[API] /metrics/{symbol}/history failed: {e}")
+            import traceback; traceback.print_exc()
+            return jsonify([]), 500
+    print("[DEBUG] init_app() returning app")
     return app
 
-
-
-    threading.Thread(target=continuity_sync_loop, daemon=True).start()
-    app.logger.info("Continuity sync loop started")
-    return app
 
 def main():
-    load_dotenv()  # Load .env early (keys for CCXT/metrics.py)
-    
-    parser = argparse.ArgumentParser(description='Crypto Futures Dashboard (Modified v0.3.3)')
-    parser.add_argument('--port', type=int, default=5000, help='Port to run on (default: 5000)')
+    parser = argparse.ArgumentParser(description="Crypto Futures Dashboard backend")
+    parser.add_argument("--port", type=int, default=5000)
     args = parser.parse_args()
-    
-    # Sys.path hack for relative imports in script mode (Pylance/VSCode resolves)
-    from sys import path
-    path.append(os.path.dirname(os.path.dirname(__file__)))  # Add src parent (backend)
-    
-    # Init app (uses config.json + .env overrides)
-    print("Initializing app...")  # Debug: Aligns "Importing..." from init_app
-    app = init_app()  # Calls existing init_app (bp register, scraper auto)
-    
-    # Health/debug post-init (roadmap: /health route via metrics_bp)
-    print(f"metrics_bp imported successfully (pairs: {app.config.get('symbols', [])})")
-    print(f"Starting SocketIO on http://0.0.0.0:{args.port} (debug mode)...")
-    
-    # Run (SocketIO handles WS/HTTP; allow_unsafe_werkzeug for Windows/debug)
-    socketio.run(app, host='0.0.0.0', port=args.port, debug=True, allow_unsafe_werkzeug=True)
 
-if __name__ == '__main__':
+    app = init_app()
+    if app is None:
+        print("[FATAL] init_app() returned None – check imports or blueprint registration.")
+        sys.exit(1)
+
+    global socketio
+    if socketio is None:
+        raise RuntimeError("SocketIO not initialized (check for import failure).")
+
+    print(f"Starting server on 0.0.0.0:{args.port} (async_mode={socketio.async_mode})")
+
+    socketio.run(
+        app,
+        host="0.0.0.0",
+        port=args.port,
+        debug=False,
+        allow_unsafe_werkzeug=True,
+    )
+
+
+if __name__ == "__main__":
     main()

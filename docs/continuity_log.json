@@ -1,110 +1,92 @@
-[
-  {
-    "timestamp": "2025-10-20T22:54:25",
-    "phase": "P3 - Weighted OI + Top L/S + Alerts",
-    "backend": "healthy",
-    "uptimePct": 39.09,
-    "total_runtime": 9600.07,
-    "downtime": 5847.16,
-    "status": "active"
-  },
-  {
-    "timestamp": "2025-10-20T22:54:28",
-    "phase": "P3 - Weighted OI + Top L/S + Alerts",
-    "backend": "healthy",
-    "uptimePct": 69.55,
-    "total_runtime": 9600.08,
-    "downtime": 2923.58,
-    "status": "active"
-  },
-  {
-    "timestamp": "2025-10-20T22:59:25",
-    "phase": "P3 - Weighted OI + Top L/S + Alerts",
-    "backend": "healthy",
-    "uptimePct": 40.94,
-    "total_runtime": 9900.07,
-    "downtime": 5847.16,
-    "status": "active"
-  },
-  {
-    "timestamp": "2025-10-20T22:59:28",
-    "phase": "P3 - Weighted OI + Top L/S + Alerts",
-    "backend": "healthy",
-    "uptimePct": 70.47,
-    "total_runtime": 9900.08,
-    "downtime": 2923.58,
-    "status": "active"
-  },
-  {
-    "timestamp": "2025-10-20T23:04:25",
-    "phase": "P3 - Weighted OI + Top L/S + Alerts",
-    "backend": "healthy",
-    "uptimePct": 42.68,
-    "total_runtime": 10200.07,
-    "downtime": 5847.16,
-    "status": "active"
-  },
-  {
-    "timestamp": "2025-10-20T23:04:28",
-    "phase": "P3 - Weighted OI + Top L/S + Alerts",
-    "backend": "healthy",
-    "uptimePct": 71.34,
-    "total_runtime": 10200.08,
-    "downtime": 2923.58,
-    "status": "active"
-  },
-  {
-    "timestamp": "2025-10-20T23:09:25",
-    "phase": "P3 - Weighted OI + Top L/S + Alerts",
-    "backend": "healthy",
-    "uptimePct": 44.31,
-    "total_runtime": 10500.07,
-    "downtime": 5847.16,
-    "status": "active"
-  },
-  {
-    "timestamp": "2025-10-20T23:09:28",
-    "phase": "P3 - Weighted OI + Top L/S + Alerts",
-    "backend": "healthy",
-    "uptimePct": 72.16,
-    "total_runtime": 10500.08,
-    "downtime": 2923.58,
-    "status": "active"
-  },
-  {
-    "timestamp": "2025-10-20T23:14:25",
-    "phase": "P3 - Weighted OI + Top L/S + Alerts",
-    "backend": "healthy",
-    "uptimePct": 45.86,
-    "total_runtime": 10800.07,
-    "downtime": 5847.16,
-    "status": "active"
-  },
-  {
-    "timestamp": "2025-10-20T23:14:28",
-    "phase": "P3 - Weighted OI + Top L/S + Alerts",
-    "backend": "healthy",
-    "uptimePct": 72.93,
-    "total_runtime": 10800.08,
-    "downtime": 2923.58,
-    "status": "active"
-  },
-  {
-    "timestamp": "2025-10-20T23:19:25",
-    "phase": "P3 - Weighted OI + Top L/S + Alerts",
-    "backend": "healthy",
-    "uptimePct": 47.32,
-    "total_runtime": 11100.07,
-    "downtime": 5847.16,
-    "status": "active"
-  },
-  {
-    "timestamp": "2025-10-20T23:19:28",
-    "phase": "P3 - Weighted OI + Top L/S + Alerts",
-    "backend": "healthy",
-    "uptimePct": 73.66,
-    "total_runtime": 11100.08,
-    "downtime": 2923.58,
-    "status": "active"
-  }
+﻿[
+    {
+        "timestamp":  "2025-10-20T23:24:28",
+        "phase":  "P3 - Weighted OI + Top L/S + Alerts",
+        "backend":  "healthy",
+        "uptimePct":  74.35,
+        "total_runtime":  11400.08,
+        "downtime":  2923.58,
+        "status":  "active"
+    },
+    {
+        "timestamp":  "2025-10-20T23:29:25",
+        "phase":  "P3 - Weighted OI + Top L/S + Alerts",
+        "backend":  "healthy",
+        "uptimePct":  50.02,
+        "total_runtime":  11700.07,
+        "downtime":  5847.16,
+        "status":  "active"
+    },
+    {
+        "timestamp":  "2025-10-20T17:59:27",
+        "phase":  "P3 - Weighted OI + Top L/S + Alerts",
+        "backend":  "healthy",
+        "uptimePct":  50.02,
+        "total_runtime":  11700.08,
+        "downtime":  5847.16,
+        "status":  "active"
+    },
+    {
+        "timestamp":  "2025-10-20T18:03:02",
+        "phase":  "P3 - Weighted OI + Top L/S + Alerts",
+        "backend":  "healthy",
+        "uptimePct":  50.02,
+        "total_runtime":  11700.08,
+        "downtime":  5847.16,
+        "status":  "active"
+    },
+    {
+        "timestamp":  "2025-10-20T18:03:05",
+        "phase":  "P3 - Weighted OI + Top L/S + Alerts",
+        "backend":  "healthy",
+        "uptimePct":  50.02,
+        "total_runtime":  11700.08,
+        "downtime":  5847.16,
+        "status":  "active"
+    },
+    {
+        "timestamp":  "2025-10-20T18:08:02",
+        "phase":  "P3 - Weighted OI + Top L/S + Alerts",
+        "backend":  "healthy",
+        "uptimePct":  51.27,
+        "total_runtime":  12000.08,
+        "downtime":  5847.16,
+        "status":  "active"
+    },
+    {
+        "timestamp":  "2025-10-20T18:08:05",
+        "phase":  "P3 - Weighted OI + Top L/S + Alerts",
+        "backend":  "healthy",
+        "uptimePct":  51.27,
+        "total_runtime":  12000.08,
+        "downtime":  5847.16,
+        "status":  "active"
+    },
+    {
+        "timestamp":  "2025-10-20T18:13:02",
+        "phase":  "P3 - Weighted OI + Top L/S + Alerts",
+        "backend":  "healthy",
+        "uptimePct":  52.46,
+        "total_runtime":  12300.08,
+        "downtime":  5847.16,
+        "status":  "active"
+    },
+    {
+        "timestamp":  "2025-10-20T18:13:05",
+        "phase":  "P3 - Weighted OI + Top L/S + Alerts",
+        "backend":  "healthy",
+        "uptimePct":  52.46,
+        "total_runtime":  12300.08,
+        "downtime":  5847.16,
+        "status":  "active"
+    },
+    {
+        "timestamp":  "2025-10-20T18:18:02",
+        "phase":  "P3 - Weighted OI + Top L/S + Alerts",
+        "backend":  "healthy",
+        "uptimePct":  53.59,
+        "total_runtime":  12600.08,
+        "downtime":  5847.16,
+        "status":  "active"
+    }
 ]

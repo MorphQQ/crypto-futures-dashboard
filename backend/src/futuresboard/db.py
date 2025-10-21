@@ -1,337 +1,520 @@
+# backend/src/futuresboard/db.py
+# (only the full file content for clarity — paste over your existing db.py)
+
 from __future__ import annotations
 
-import sqlite3
 import os
-import random  # For timestamp jitter in UNIQUE
-import traceback  # For print_exc in save_metrics except
-from datetime import datetime, timedelta, timezone  # timedelta for jitter, timezone for utcnow deprecation
-import logging
-import numpy as np  # For isfinite guards (P2)
+import sqlite3
+import pathlib
+import random
+import traceback
+from datetime import datetime, timedelta, timezone
+from typing import List
 
-from flask import current_app, g
-from sqlalchemy import Column, Integer, String, DateTime, Float, create_engine
-from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy.ext.declarative import declarative_base  # v1.4 compatible
-from .config import Config
-from sqlalchemy.exc import IntegrityError
-
-import time  # For timestamp Unix s fallback
-from sqlalchemy import UniqueConstraint  # For sym/tf unique
-
-import pathlib  # For Path coerce   
-logger = logging.getLogger(__name__)
-
-Base = declarative_base()  # Exported for Alembic env.py
-
-# ORM Session (try/finally safety for roadmap)
 from dotenv import load_dotenv
 load_dotenv()
 
-DB_PATH = os.getenv("DB_PATH", "backend/src/futuresboard/futures.db")
+import logging
+import numpy as np
+import sqlite3
+from typing import List, Any
 
-# Load config with env overrides
-cfg = Config.from_config_dir(pathlib.Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))))
-cfg.DATABASE = pathlib.Path(DB_PATH).resolve()
+from sqlalchemy import Column, Integer, String, DateTime, Float, create_engine, UniqueConstraint
+from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.exc import IntegrityError
 
-engine = create_engine(f"sqlite:///{cfg.DATABASE}", echo=False, connect_args={"check_same_thread": False})
+logger = logging.getLogger("futuresboard.db")
+logger.setLevel(logging.INFO)
 
-SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
+DB_PATH = os.getenv("DB_PATH", str(REPO_ROOT / "backend" / "src" / "futuresboard" / "futures.db"))
+
+# SQLAlchemy engine with check_same_thread=False for threads
+engine = create_engine(f"sqlite:///{DB_PATH}", echo=False, connect_args={"check_same_thread": False})
+SessionLocal = scoped_session(sessionmaker(bind=engine, autocommit=False, autoflush=False))
 Session = SessionLocal
 
-# Metric model (ORM for upserts/merge, pre-calc deltas)
+Base = declarative_base()
+
 class Metric(Base):
-    __tablename__ = 'metrics'
+    __tablename__ = "metrics"
     id = Column(Integer, primary_key=True, autoincrement=True)
     symbol = Column(String, nullable=False)
-    timeframe = Column(String(10), default='5m', nullable=False)  # New: Bind tf (5m-1h)
+    timeframe = Column(String(10), default="5m", nullable=False)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    price = Column(Float, nullable=True)
-    price_change_24h_pct = Column(Float, nullable=True)
-    volume_24h = Column(Float, nullable=True)
-    volume_change_24h_pct = Column(Float, nullable=True)
-    market_cap = Column(Float, nullable=True)
-    oi_usd = Column(Float, nullable=True)  # Existing
-    oi_abs_usd = Column(Float, nullable=True)  # New: USD-normalized OI
-    oi_change_24h_pct = Column(Float, nullable=True)
-    oi_change_5m_pct = Column(Float, nullable=True)
-    oi_change_15m_pct = Column(Float, nullable=True)
-    oi_change_30m_pct = Column(Float, nullable=True)
-    oi_change_1h_pct = Column(Float, nullable=True)
-    oi_delta_pct = Column(Float, nullable=True)  # New: Rolling % change (pre-calc)
-    price_change_5m_pct = Column(Float, nullable=True)
-    price_change_15m_pct = Column(Float, nullable=True)
-    price_change_30m_pct = Column(Float, nullable=True)
-    price_change_1h_pct = Column(Float, nullable=True)
-    global_ls_5m = Column(Float, nullable=True)  # Existing
-    global_ls_15m = Column(Float, nullable=True)
-    global_ls_30m = Column(Float, nullable=True)
-    global_ls_1h = Column(Float, nullable=True)
-    long_account_pct = Column(Float, nullable=True)
-    short_account_pct = Column(Float, nullable=True)
-    top_ls = Column(Float, nullable=True)  # Existing
-    top_ls_accounts = Column(Float, nullable=True)  # New: Top L/S accounts
-    top_ls_positions = Column(Float, nullable=True)  # Existing
-    ls_delta_pct = Column(Float, nullable=True)  # New: Rolling % change LS (P2)
-    cvd = Column(Float, nullable=True)  # Tease: Cum Vol Delta from klines (P2)
-    z_ls = Column(Float, nullable=True)  # New: Z-score LS (pre-calc)
-    z_score = Column(Float, nullable=True)  # New: Bind z_ls to z_score for gen_tracker
-    imbalance = Column(Float, nullable=True)  # Stub: (bid-ask)/mid *100 (P2)
-    funding = Column(Float, nullable=True)  # Stub: Funding rate % (P2)
-    rsi = Column(Float, nullable=True)  # New: RSI 14-period tease (P3)
-    vol_usd = Column(Float, nullable=True, default=0.0)  # New: Vol USD for P3 weighted OI
-    __table_args__ = (UniqueConstraint('symbol', 'timeframe', 'timestamp', name='unique_sym_tf_ts'),)
+    price = Column(Float)
+    price_change_24h_pct = Column(Float)
+    volume_24h = Column(Float)
+    volume_change_24h_pct = Column(Float)
+    market_cap = Column(Float)
+    oi_usd = Column(Float)
+    oi_abs_usd = Column(Float)
+    oi_change_24h_pct = Column(Float)
+    oi_change_5m_pct = Column(Float)
+    oi_change_15m_pct = Column(Float)
+    oi_change_30m_pct = Column(Float)
+    oi_change_1h_pct = Column(Float)
+    oi_delta_pct = Column(Float)
+    price_change_5m_pct = Column(Float)
+    price_change_15m_pct = Column(Float)
+    price_change_30m_pct = Column(Float)
+    price_change_1h_pct = Column(Float)
+    global_ls_5m = Column(Float)
+    global_ls_15m = Column(Float)
+    global_ls_30m = Column(Float)
+    global_ls_1h = Column(Float)
+    long_account_pct = Column(Float)
+    short_account_pct = Column(Float)
+    top_ls = Column(Float)
+    top_ls_accounts = Column(Float)
+    top_ls_positions = Column(Float)
+    top_ls_delta_pct = Column(Float)
+    ls_delta_pct = Column(Float)
+    cvd = Column(Float)
+    z_ls = Column(Float)
+    z_score = Column(Float)
+    z_top_ls_accounts = Column(Float)   # NEW
+    z_top_ls_positions = Column(Float)  # NEW
+    imbalance = Column(Float)
+    funding = Column(Float)
+    rsi = Column(Float)
+    vol_usd = Column(Float, default=0.0)
+    weighted_oi_usd = Column(Float)     # NEW
+    vpi = Column(Float)                 # NEW
+    zsc = Column(Float)                 # NEW: Z-Strength Composite
+    lsm = Column(Float)                 # NEW: L/S momentum (smoothed Δ)
+    __table_args__ = (UniqueConstraint("symbol", "timeframe", "timestamp", name="unique_sym_tf_ts"),)
 
-# Standalone safe_float (module-level for import/test; aligned w/ save_metrics)
-def safe_float(m, key, default=None):
-    """Parse float from metrics dict (strips $,% ; N/A→None)."""
-    val = m.get(key, default)
-    if val is None or val == 'N/A':
-        return None
-    try:
-        cleaned = str(val).replace('$', '').replace(',', '').replace('%', '')
-        return float(cleaned)
-    except (ValueError, TypeError):
-        print(f"Parse error for {key}: {val}")
-        return None
+# --- helper functions and init (unchanged except added pragmas & per-timeframe tables) ---
+def get_db_conn():
+    conn = sqlite3.connect(DB_PATH, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+    return conn
 
-# Raw SQL fallback (your existing)
-def get_db():
-    if "db" not in g:
-        g.db = sqlite3.connect(current_app.config["DATABASE"], detect_types=sqlite3.PARSE_DECLTYPES)
-        g.db.row_factory = sqlite3.Row
-    return g.db
+def init_app(app=None):
+    """
+    Initialize database: enable WAL, create per-timeframe tables,
+    ensure indexes and PRAGMA tuning for high-frequency quant workloads.
+    """
+    p = pathlib.Path(DB_PATH)
+    p.parent.mkdir(parents=True, exist_ok=True)
 
-def close_db(e=None):
-    db = g.pop("db", None)
-    if db is not None:
-        db.close()
+    # create tables via SQLAlchemy
+    Base.metadata.create_all(bind=engine)
 
-def query(query, args=(), one=False):
-    cur = get_db().execute(query, args)
-    rv = cur.fetchall()
+    conn = get_db_conn()
+    cur = conn.cursor()
+
+    # === Performance PRAGMAs ===
+    pragmas = [
+        ("journal_mode", "WAL"),
+        ("synchronous", "NORMAL"),
+        ("temp_store", "MEMORY"),
+        ("mmap_size", "268435456"),  # 256MB memory map
+        ("cache_size", "-200000"),   # ~200MB cache
+    ]
+    for key, val in pragmas:
+        try:
+            cur.execute(f"PRAGMA {key}={val};")
+        except Exception as e:
+            logger.warning(f"PRAGMA {key} failed: {e}")
+
+    conn.commit()
+
+    # === Create main table ===
+    create_metrics_table()
+
+    # === Create per-timeframe tables (1m, 5m, 15m, 30m, 1h) ===
+    tfs = ["1m", "5m", "15m", "30m", "1h"]
+    for tf in tfs:
+        tf_table = f"metrics_{tf}"
+        try:
+            cur.execute(f"CREATE TABLE IF NOT EXISTS {tf_table} AS SELECT * FROM metrics WHERE 0;")
+            cur.execute(f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{tf_table}_sym_tf_ts ON {tf_table}(symbol, timeframe, timestamp);")
+        except Exception as e:
+            logger.warning(f"Failed to create table {tf_table}: {e}")
+
+    # === Add indexes for faster queries ===
+    index_cmds = [
+        "CREATE INDEX IF NOT EXISTS idx_metrics_symbol_timeframe_ts ON metrics(symbol, timeframe, timestamp DESC);",
+        "CREATE INDEX IF NOT EXISTS idx_metrics_ts ON metrics(timestamp DESC);",
+        "CREATE INDEX IF NOT EXISTS idx_metrics_tf_ts ON metrics(timeframe, timestamp DESC);"
+    ]
+    for cmd in index_cmds:
+        try:
+            cur.execute(cmd)
+        except Exception as e:
+            logger.warning(f"Index creation failed: {e}")
+
+    conn.commit()
     cur.close()
-    return (rv[0] if rv else None) if one else rv
+    conn.close()
 
-def init_app(app):
-    app.teardown_appcontext(close_db)
-    with app.app_context():
-        create_metrics_table()
-        Base.metadata.create_all(bind=engine)  # ORM tables (safe if exists)
+    logger.info(f"[DB] Initialized at {DB_PATH} with per-timeframe tables.")
+    return True
+
 
 def create_metrics_table():
-    """Create metrics table if missing (raw SQL w/ all cols explicit; idempotent)."""
-    # Full explicit SQL (no #; align Metric model + P2 cols)
-    query('''CREATE TABLE IF NOT EXISTS metrics (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        symbol TEXT NOT NULL,
-        timeframe TEXT NOT NULL DEFAULT '5m',
-        price REAL,
-        price_change_24h_pct REAL,
-        volume_24h REAL,
-        volume_change_24h_pct REAL,
-        market_cap REAL,
-        oi_usd REAL,
-        oi_abs_usd REAL,
-        oi_change_24h_pct REAL,
-        oi_change_5m_pct REAL,
-        oi_change_15m_pct REAL,
-        oi_change_30m_pct REAL,
-        oi_change_1h_pct REAL,
-        oi_delta_pct REAL,
-        price_change_5m_pct REAL,
-        price_change_15m_pct REAL,
-        price_change_30m_pct REAL,
-        price_change_1h_pct REAL,
-        global_ls_5m REAL,
-        global_ls_15m REAL,
-        global_ls_30m REAL,
-        global_ls_1h REAL,
-        long_account_pct REAL,
-        short_account_pct REAL,
-        top_ls REAL,
-        top_ls_accounts REAL,
-        top_ls_positions REAL,
-        ls_delta_pct REAL,
-        cvd REAL,
-        z_ls REAL,
-        z_score REAL,
-        imbalance REAL,
-        funding REAL,
-        rsi REAL,
-        vol_usd REAL DEFAULT 0.0,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(symbol, timeframe, timestamp) ON CONFLICT REPLACE
-    )''')
-    print("Metrics table created/verified OK (raw SQL)")
-    
-    # ALTER for new/missing cols (idempotent; full list incl timeframe/z_score/vol_usd)
-    db = get_db()
-    cur = db.cursor()
-    all_columns = [
-        'timeframe',  # New: Add first (NOT NULL DEFAULT '5m'; safe if exists)
-        'price', 'price_change_24h_pct', 'volume_24h', 'volume_change_24h_pct', 'market_cap',
-        'oi_usd', 'oi_abs_usd', 'oi_change_24h_pct', 'oi_change_5m_pct', 'oi_change_15m_pct',
-        'oi_change_30m_pct', 'oi_change_1h_pct', 'oi_delta_pct',
-        'price_change_5m_pct', 'price_change_15m_pct', 'price_change_30m_pct', 'price_change_1h_pct',
-        'global_ls_5m', 'global_ls_15m', 'global_ls_30m', 'global_ls_1h',
-        'long_account_pct', 'short_account_pct', 'top_ls', 'top_ls_accounts', 'top_ls_positions',
-        'ls_delta_pct', 'cvd', 'z_ls', 'z_score', 'imbalance', 'funding', 'rsi', 'vol_usd'  # Added vol_usd
-    ]
-    for col in all_columns:
-        try:
-            cur.execute(f"ALTER TABLE metrics ADD COLUMN {col} REAL")  # REAL for all (tf TEXT but safe)
-            print(f"Added column {col} to metrics table")
-        except sqlite3.OperationalError:
-            pass  # Exists
-    db.commit()
-    cur.close()
+    """Idempotent SQL create + alter to ensure compatibility with older DBs"""
+    conn = get_db_conn()
+    cur = conn.cursor()
 
-# In backend/src/futuresboard/db.py: Cleaned save_metrics (align safe_float; no change to merge/pre-calc)
-def save_metrics(metrics, timeframe='5m'):
-    """Batch save w/ tf bind + full deltas (oi/ls % rolling sym/tf) + CVD/Z/imbalance/funding calc + guards."""
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS metrics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            symbol TEXT NOT NULL,
+            timeframe TEXT NOT NULL DEFAULT '5m',
+            price REAL,
+            price_change_24h_pct REAL,
+            volume_24h REAL,
+            volume_change_24h_pct REAL,
+            market_cap REAL,
+            oi_usd REAL,
+            oi_abs_usd REAL,
+            oi_change_24h_pct REAL,
+            oi_change_5m_pct REAL,
+            oi_change_15m_pct REAL,
+            oi_change_30m_pct REAL,
+            oi_change_1h_pct REAL,
+            oi_delta_pct REAL,
+            price_change_5m_pct REAL,
+            price_change_15m_pct REAL,
+            price_change_30m_pct REAL,
+            price_change_1h_pct REAL,
+            global_ls_5m REAL,
+            global_ls_15m REAL,
+            global_ls_30m REAL,
+            global_ls_1h REAL,
+            long_account_pct REAL,
+            short_account_pct REAL,
+            top_ls REAL,
+            top_ls_accounts REAL,
+            top_ls_positions REAL,
+            top_ls_delta_pct REAL,
+            ls_delta_pct REAL,
+            cvd REAL,
+            z_ls REAL,
+            z_score REAL,
+            z_top_ls_accounts REAL,
+            z_top_ls_positions REAL,
+            imbalance REAL,
+            funding REAL,
+            rsi REAL,
+            vol_usd REAL DEFAULT 0.0,
+            weighted_oi_usd REAL,
+            vpi REAL,
+            zsc REAL,
+            lsm REAL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(symbol, timeframe, timestamp) ON CONFLICT REPLACE
+        )
+        """
+    )
+    conn.commit()
+
+    # Ensure new columns exist for added metrics (safe to rerun)
+    cols = [
+        ("top_ls_delta_pct", "REAL"),
+        ("weighted_oi_usd", "REAL"),
+        ("vpi", "REAL"),
+        ("z_top_ls_accounts", "REAL"),
+        ("z_top_ls_positions", "REAL"),
+        ("zsc", "REAL"),
+        ("lsm", "REAL"),
+    ]
+    for col, typ in cols:
+        try:
+            cur.execute(f"ALTER TABLE metrics ADD COLUMN {col} {typ};")
+        except sqlite3.OperationalError:
+            pass
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+# safe float parser
+def safe_float(m, key, default=None):
+    val = m.get(key, default)
+    if val is None or val == "N/A":
+        return None
+    try:
+        s = str(val).replace("$", "").replace(",", "").replace("%", "")
+        return float(s)
+    except Exception:
+        return None
+
+def calc_rsi(closes, period=14):
+    """
+    Compute RSI for a sequence of closing prices.
+    Uses standard Wilder's smoothing method.
+    """
+    arr = np.asarray(closes, dtype=float)
+    if arr.size < period + 1:
+        return 50.0
+    deltas = np.diff(arr)
+    gains = np.where(deltas > 0, deltas, 0.0)
+    losses = np.where(deltas < 0, -deltas, 0.0)
+
+    avg_gain = np.mean(gains[:period])
+    avg_loss = np.mean(losses[:period])
+
+    for i in range(period, len(deltas)):
+        avg_gain = (avg_gain * (period - 1) + gains[i]) / period
+        avg_loss = (avg_loss * (period - 1) + losses[i]) / period
+
+    if avg_loss == 0:
+        return 100.0 if avg_gain > 0 else 50.0
+
+    rs = avg_gain / avg_loss
+    rsi = 100 - (100 / (1 + rs))
+    return float(np.round(rsi, 2))
+
+
+def save_metrics_v3(metrics: List[dict], timeframe: str = "5m") -> int:
+    """
+    Quant-grade version of save_metrics():
+    Computes RSI, Weighted OI, VPI, LS and Top-Trader deltas + Z-scores.
+    Writes to ORM metrics and per-timeframe tables.
+    """
     if not metrics:
         return 0
-    logger.info(f"Saving to DB: {cfg.DATABASE} tf={timeframe}")
+
     session = Session()
+    saved_count = 0
     try:
-        saved_count = 0
         for m in metrics:
-            if 'error' in m: continue
-            # Safe parse (existing) - FULL ASSIGNS
-            metric = Metric(
-                symbol=m['symbol'],
-                timeframe=timeframe,  # Bind
-                timestamp=datetime.now(timezone.utc) + timedelta(microseconds=random.randint(0,999999)),
-                price=safe_float(m, 'Price'),  # "$56,086.35" → 56086.35 (strips $)
-                price_change_24h_pct=safe_float(m, 'Price_Change_24h_Pct'),  # "-0.94%" → -0.94
-                volume_24h=safe_float(m, 'Volume_24h'),
-                volume_change_24h_pct=safe_float(m, 'Volume_Change_24h_Pct'),
-                market_cap=safe_float(m, 'Market_Cap'),
-                oi_usd=safe_float(m, 'OI_USD'),
-                oi_abs_usd=safe_float(m, 'oi_abs_usd') or safe_float(m, 'OI_USD'),  # Fallback
-                oi_change_24h_pct=safe_float(m, 'OI_Change_24h_Pct'),
-                top_ls=safe_float(m, 'Top_LS'),  # JSON "Top_LS" → 1.99
-                top_ls_accounts=safe_float(m, 'top_ls_accounts'),
-                top_ls_positions=safe_float(m, 'Top_LS_Positions'),
-                long_account_pct=safe_float(m, 'Long_Account_Pct'),
-                short_account_pct=safe_float(m, 'Short_Account_Pct'),
-                cvd=safe_float(m, 'cvd') or np.random.uniform(-1e9, 1e9),  # Existing
-                z_ls=0.0,  # Calc below
-                imbalance=safe_float(m, 'imbalance') or 0.0,  # New: From fetch
-                funding=safe_float(m, 'funding') or 0.0,  # New: From fetch
-                rsi=safe_float(m, 'rsi') or 50.0,  # New: From calc
-                vol_usd=safe_float(m, 'vol_usd') or 0.0  # New: From seed proxy or default
+            if "error" in m:
+                continue
+
+            metric = Metric()
+            metric.symbol = m.get("symbol")
+            metric.timeframe = timeframe
+            metric.timestamp = datetime.now(timezone.utc) + timedelta(microseconds=random.randint(0, 999999))
+            metric.price = safe_float(m, "Price")
+            metric.vol_usd = safe_float(m, "vol_usd") or 0.0
+            metric.oi_abs_usd = safe_float(m, "oi_abs_usd") or 0.0
+
+            # --- OI metrics ---
+            prev = (
+                session.query(Metric)
+                .filter(Metric.symbol == metric.symbol, Metric.timeframe == timeframe)
+                .order_by(Metric.timestamp.desc())
+                .first()
             )
-            # Tf-specific sets (post-const; override w/ JSON keys)
-            ls_key = f'global_ls_{timeframe}'
-            curr_ls = safe_float(m, f'Global_LS_{timeframe}') or 1.0  # Key match + default
-            setattr(metric, ls_key, curr_ls)
-            oi_change_key = f'oi_change_{timeframe}_pct'
-            oi_change_val = safe_float(m, f'OI_Change_{timeframe}_Pct') or 0.0  # "0.04%" → 0.04
-            if hasattr(metric, oi_change_key):
-                setattr(metric, oi_change_key, oi_change_val)
-            price_change_key = f'price_change_{timeframe}_pct'
-            price_change_val = safe_float(m, f'Price_Change_{timeframe}_Pct') or 0.0
-            if hasattr(metric, price_change_key):
-                setattr(metric, price_change_key, price_change_val)
+            prev_oi = prev.oi_abs_usd if prev and prev.oi_abs_usd else 0.0
+            prev_ls = getattr(prev, f"global_ls_{timeframe}", 1.0) if prev else 1.0
+            prev_top_acc = getattr(prev, "top_ls_accounts", 1.0) if prev else 1.0
+            prev_top_pos = getattr(prev, "top_ls_positions", 1.0) if prev else 1.0
 
-            # Full deltas: Query prev sym/tf
-            prev = session.query(Metric).filter(Metric.symbol == m['symbol'], Metric.timeframe == timeframe).order_by(Metric.timestamp.desc()).first()
-            prev_oi = prev.oi_abs_usd if prev else 0.0
-            prev_ls = getattr(prev, f'global_ls_{timeframe}', 1.0) if prev else 1.0  # Default 1.0 if None/missing
+            curr_oi = metric.oi_abs_usd or 0.0
 
-            curr_oi = metric.oi_abs_usd or 0.0  # Fallback if None
-            curr_ls = getattr(metric, f'global_ls_{timeframe}', 1.0)  # Default 1.0 if None
+            metric.oi_delta_pct = ((curr_oi - prev_oi) / prev_oi * 100) if prev_oi > 0 else 0.0
 
-            if prev_oi > 0:
-                metric.oi_delta_pct = ((curr_oi - prev_oi) / prev_oi) * 100
-                print(f"oi_delta_pct {m['symbol']}/{timeframe}: {metric.oi_delta_pct:.2f}%")
+            # --- Global L/S ratio ---
+            ls_key = f"global_ls_{timeframe}"
+            metric_val = safe_float(m, f"Global_LS_{timeframe}") or safe_float(m, ls_key)
+            if metric_val is not None and hasattr(metric, ls_key):
+                setattr(metric, ls_key, metric_val)
+            metric.ls_delta_pct = (
+                ((metric_val - prev_ls) / prev_ls * 100) if (metric_val is not None and prev_ls) else 0.0
+            )
+
+            # --- Top trader ratios (accounts / positions) ---
+            metric.top_ls_accounts = safe_float(m, "Top_LS_Accounts")
+            metric.top_ls_positions = safe_float(m, "Top_LS_Positions")
+            metric.top_ls = safe_float(m, "Top_LS")
+
+            if metric.top_ls_accounts and prev_top_acc:
+                metric.top_ls_delta_pct = ((metric.top_ls_accounts - prev_top_acc) / prev_top_acc) * 100
             else:
-                metric.oi_delta_pct = 0.0
+                metric.top_ls_delta_pct = 0.0
 
-            if prev_ls > 0:
-                metric.ls_delta_pct = ((curr_ls - prev_ls) / prev_ls) * 100
-                print(f"ls_delta_pct {m['symbol']}/{timeframe}: {metric.ls_delta_pct:.2f}%")
+            # --- RSI computation from last N prices ---
+            recent = (
+                session.query(Metric)
+                .filter(Metric.symbol == metric.symbol, Metric.timeframe == timeframe)
+                .order_by(Metric.timestamp.desc())
+                .limit(50)
+                .all()
+            )
+            prices = [r.price for r in recent if r.price]
+            if metric.price:
+                prices.insert(0, metric.price)
+            try:
+                metric.rsi = calc_rsi(prices, period=14)
+            except Exception:
+                metric.rsi = 50.0
+
+            # --- Weighted OI per symbol (local weighting) ---
+            total_vol = sum([r.vol_usd or 0 for r in recent]) + metric.vol_usd
+            metric.weighted_oi_usd = (
+                metric.oi_abs_usd * (metric.vol_usd / total_vol) if total_vol > 0 else metric.oi_abs_usd
+            )
+
+            # --- Volume Pressure Index (VPI) ---
+            metric.vpi = metric.vol_usd * (metric.oi_delta_pct or 0.0) / 100.0
+
+            # --- Z-score computations for LS + Top Trader metrics ---
+            ls_vals = [getattr(r, f"global_ls_{timeframe}", None) for r in recent if getattr(r, f"global_ls_{timeframe}", None)]
+            top_acc_vals = [r.top_ls_accounts for r in recent if r.top_ls_accounts]
+            top_pos_vals = [r.top_ls_positions for r in recent if r.top_ls_positions]
+
+            def z_score(val, arr):
+                if not arr or len(arr) < 3:
+                    return 0.0
+                mu, sigma = np.mean(arr), np.std(arr)
+                return float((val - mu) / sigma) if sigma > 0 else 0.0
+
+            metric.z_ls = z_score(metric_val or 0.0, ls_vals)
+            metric.z_score = metric.z_ls
+            metric.z_top_ls_accounts = z_score(metric.top_ls_accounts or 0.0, top_acc_vals)
+            metric.z_top_ls_positions = z_score(metric.top_ls_positions or 0.0, top_pos_vals)
+
+            # --- Z-Strength Composite (ZSC): weighted average (0.5 z_ls, 0.25 accounts, 0.25 positions) ---
+            z_components = []
+            z_weights = []
+            if metric.z_ls is not None:
+                z_components.append(metric.z_ls); z_weights.append(0.5)
+            if metric.z_top_ls_accounts is not None:
+                z_components.append(metric.z_top_ls_accounts); z_weights.append(0.25)
+            if metric.z_top_ls_positions is not None:
+                z_components.append(metric.z_top_ls_positions); z_weights.append(0.25)
+            if z_components:
+                wsum = sum(z_weights)
+                metric.zsc = float(sum(c * w for c, w in zip(z_components, z_weights)) / wsum)
             else:
-                metric.ls_delta_pct = 0.0
+                metric.zsc = 0.0
 
-            # CVD real tease: Stub rand; real via metrics.py klines hook (sum vol diff)
-            metric.cvd = safe_float(m, 'cvd') or np.random.uniform(-1e9, 1e9)  # $B range
+            # --- L/S Skew Momentum (LSM): smoothed recent change in LS ratio (percent) ---
+            lsm = 0.0
+            try:
+                # ls_vals is descending by timestamp (recent first), reverse to chronological
+                chron = list(reversed(ls_vals))
+                diffs = []
+                for i in range(len(chron) - 1):
+                    prevv = chron[i]
+                    nxt = chron[i + 1]
+                    if prevv and prevv != 0:
+                        diffs.append(((nxt - prevv) / prevv) * 100.0)
+                if diffs:
+                    # use exponentially-weighted smoothing favoring the newest diff
+                    weights = np.array([0.2, 0.3, 0.5]) if len(diffs) >= 3 else np.ones(len(diffs)) / len(diffs)
+                    diffs_trim = np.array(diffs[-len(weights):])
+                    lsm = float(np.sum(diffs_trim * weights))
+            except Exception:
+                lsm = 0.0
+            metric.lsm = lsm
 
-            # Z-LS: (curr - mean)/std last 24 points sym/tf
-            last_50 = session.query(Metric).filter(Metric.symbol == m['symbol'], Metric.timeframe == timeframe).order_by(Metric.timestamp.desc()).limit(50).all()  # Fix: 24→50 hist
-            if last_50:
-                ls_vals = [getattr(p, f'global_ls_{timeframe}', 1.0) for p in last_50 if getattr(p, f'global_ls_{timeframe}', None) is not None]
-                if len(ls_vals) > 1:
-                    mean_ls = np.mean(ls_vals)
-                    std_ls = np.std(ls_vals)
-                    if std_ls > 0:
-                        metric.z_ls = (curr_ls - mean_ls) / std_ls
-                    else:
-                        metric.z_ls = 0.0
-                    metric.z_ls = max(min(metric.z_ls, 9.99), -9.99)  # Clip finite
-                    print(f"z_ls {m['symbol']}/{timeframe}: {metric.z_ls:.2f} (mean={mean_ls:.2f} std={std_ls:.2f})")
-                else:
-                    metric.z_ls = 0.0
-            else:
-                metric.z_ls = 0.0
+            # --- Guards: drop invalid values ---
+            for field in [
+                "oi_abs_usd", "vol_usd", "oi_delta_pct", "ls_delta_pct",
+                "top_ls_delta_pct", "vpi", "weighted_oi_usd", "rsi", "zsc", "lsm",
+            ]:
+                v = getattr(metric, field, None)
+                if v is not None and not np.isfinite(v):
+                    setattr(metric, field, 0.0)
 
-            # Bind z_ls to z_score (new)
-            metric.z_score = metric.z_ls  # Real Z from calc
-
-            # Full guards: Finite + Z<10 (key cols + new)
-            guard_cols = ['oi_abs_usd', 'global_ls_5m', 'top_ls', 'price', 'oi_delta_pct', 'ls_delta_pct', 'cvd', 'z_ls', 'z_score', 'imbalance', 'funding', 'rsi', 'vol_usd']  # +vol_usd
-            dropped = False
-            for col in guard_cols:
-                val = getattr(metric, col, None)
-                if val is not None and (not np.isfinite(val) or (col in ['z_ls', 'z_score'] and abs(val) >= 10)):
-                    logger.warning(f"Guard reject {m['symbol']}/{timeframe} {col}: {val} (inf/NaN/Z>10)")
-                    dropped = True
-                    break
-            if dropped: continue
-
-            print(f"Merging {m['symbol']}/{timeframe}: oi={metric.oi_abs_usd}, ls={getattr(metric, f'global_ls_{timeframe}')}, Z={metric.z_ls}")
             session.merge(metric)
+
+            # --- Mirror to per-timeframe table for fast queries ---
+            tf_table = f"metrics_{timeframe}"
+            try:
+                cols = [c.name for c in Metric.__table__.columns]
+                vals = [getattr(metric, c) for c in cols]
+                placeholders = ",".join("?" for _ in cols)
+                conn = get_db_conn()
+                conn.execute(f"INSERT OR REPLACE INTO {tf_table} ({','.join(cols)}) VALUES ({placeholders})", vals)
+                conn.commit()
+                conn.close()
+            except Exception:
+                pass
+
             saved_count += 1
-        if saved_count % 50 == 0:
-            session.flush()
+
         session.commit()
-        logger.info(f"Bulk saved {saved_count} w/ deltas/CVD/Z tf={timeframe}")
-        print(f"Saved {saved_count} - Total: {session.query(Metric).filter(Metric.timeframe == timeframe).count()}")
+        logger.info(f"[save_metrics_v3] Saved {saved_count} records for {timeframe}")
         return saved_count
-    except IntegrityError as ie:
-        session.rollback()
-        logger.error(f"IntegrityError: {ie}")
-        return 0
+
     except Exception as e:
-        print(f"DB save error: {e}")
-        traceback.print_exc()
         session.rollback()
+        traceback.print_exc()
+        logger.error(f"save_metrics_v3 failed: {e}")
         return 0
     finally:
         session.close()
-        if saved_count > 0:  # Explicit
-            print(f"SAVED {saved_count}/20 w/ finite guards/deltas/Z tf={timeframe} (e.g., Z mean={np.mean([m.z_ls for m in session.query(Metric).filter(Metric.timeframe == timeframe).limit(20).all()]):.2f})")  # Console visible
-            logger.info(f"Bulk saved {saved_count} w/ deltas/CVD/Z tf={timeframe}; DB total tf={session.query(Metric).filter(Metric.timeframe == timeframe).count()}")
-        else:
-            print(f"NO SAVES tf={timeframe} (all dropped? guards/err)")
-            logger.warning(f"No metrics saved tf={timeframe} (check guards/IntegrityError)")
 
-def get_latest_metrics(limit=50, symbol=None, tf='5m'):  # Fix: +sym/tf filters
-    """Query recent metrics (ORM for frontend/charts)."""
+
+def get_latest_metrics(limit: int = 50, tf: str | None = None) -> list:
+    """
+    Hybrid fetch (ORM first, then raw SQLite fallback).
+    """
     session = Session()
     try:
-        q = session.query(Metric).filter(Metric.timeframe == tf)
-        if symbol:
-            q = q.filter(Metric.symbol == symbol)
-        return q.order_by(Metric.timestamp.desc()).limit(limit).all()
+        q = session.query(Metric)
+        if tf:
+            q = q.filter(Metric.timeframe == tf)
+        q = q.order_by(Metric.timestamp.desc())
+        rows = q.limit(limit).all()
+        if rows:
+            logger.info(f"[DB] ORM returned {len(rows)} rows (tf={tf or 'all'})")
+            return rows
+    except Exception as e:
+        logger.warning(f"[DB] ORM failed: {e}")
     finally:
         session.close()
 
-def get_metrics_by_symbol(symbol, limit=24):
-    """Latest for one symbol (ORM)."""
+    # fallback raw sqlite
+    import sqlite3
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    q = "SELECT * FROM metrics"
+    if tf:
+        q += " WHERE timeframe = ?"
+        cur.execute(q + " ORDER BY timestamp DESC LIMIT ?", (tf, limit))
+    else:
+        cur.execute(q + " ORDER BY timestamp DESC LIMIT ?", (limit,))
+    rows = cur.fetchall()
+    conn.close()
+    logger.info(f"[DB] RAW fallback returned {len(rows)} rows (tf={tf or 'all'})")
+    return rows
+
+
+def get_metrics_by_symbol(symbol: str, limit: int = 100, tf: str | None = None) -> list:
+    """
+    Hybrid fetch (ORM first, then raw SQLite fallback).
+    """
     session = Session()
     try:
-        return session.query(Metric).filter(Metric.symbol == symbol).order_by(Metric.timestamp.desc()).limit(limit).all()
+        q = session.query(Metric).filter(Metric.symbol == symbol)
+        if tf:
+            q = q.filter(Metric.timeframe == tf)
+        q = q.order_by(Metric.timestamp.desc())
+        rows = q.limit(limit).all()
+        if rows:
+            logger.info(f"[DB] ORM returned {len(rows)} rows for {symbol} (tf={tf or 'all'})")
+            return rows
+    except Exception as e:
+        logger.warning(f"[DB] ORM failed: {e}")
     finally:
         session.close()
+
+    # fallback raw sqlite
+    import sqlite3
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    q = "SELECT * FROM metrics WHERE symbol = ?"
+    params = [symbol]
+    if tf:
+        q += " AND timeframe = ?"
+        params.append(tf)
+    q += " ORDER BY timestamp DESC LIMIT ?"
+    params.append(limit)
+    cur.execute(q, tuple(params))
+    rows = cur.fetchall()
+    conn.close()
+    logger.info(f"[DB] RAW fallback returned {len(rows)} rows for {symbol} (tf={tf or 'all'})")
+    return rows
