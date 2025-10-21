@@ -1,8 +1,8 @@
 # Project Status Report Template - Crypto Futures Dashboard
 
-**Generated:** 2025-10-21 23:42:15  
-**Phase:** P3.6 - UTF8 Logging + QuantSummary Stable  
-**Backend:** futuresboard  
+**Generated:** {{timestamp}}  
+**Phase:** {{phase}}  
+**Backend:** {{backend_name}}  
 **Maintainer:** Lian Isaac  
 
 ---
@@ -11,27 +11,27 @@
 
 | Field | Value |
 |-------|-------|
-| **Phase** | P3.6 - UTF8 Logging + QuantSummary Stable |
-| **Backend Health** | unhealthy |
-| **Uptime (7-Sample)** | 40.0 % |
-| **System** | Microsoft Windows 10 Pro |
-| **Database Path** | backend/src/futuresboard/futures.db |
+| **Phase** | {{phase}} |
+| **Backend Health** | {{backend_health}} |
+| **Uptime (7-Sample)** | {{uptime_pct}} % |
+| **System** | {{system_info}} |
+| **Database Path** | {{db_path}} |
 
 ---
 
 ## Backend Summary
 
-**Last Snapshot:** 2025-10-21 23:42:15  
-**Health Check:** unhealthy  
+**Last Snapshot:** {{timestamp}}  
+**Health Check:** {{health_message}}  
 
 ### Key Components
 | File | Hash | Last Updated |
 |------|------|---------------|
-| metrics.py | {{hash_metrics}} | 2025-10-21 23:42:15 |
-| db.py | {{hash_db}} | 2025-10-21 23:42:15 |
-| app.py | {{hash_app}} | 2025-10-21 23:42:15 |
-| scraper.py | {{hash_scraper}} | 2025-10-21 23:42:15 |
-| App.jsx | {{hash_appjsx}} | 2025-10-21 23:42:15 |
+| metrics.py | {{hash_metrics}} | {{timestamp}} |
+| db.py | {{hash_db}} | {{timestamp}} |
+| app.py | {{hash_app}} | {{timestamp}} |
+| scraper.py | {{hash_scraper}} | {{timestamp}} |
+| App.jsx | {{hash_appjsx}} | {{timestamp}} |
 
 ---
 
@@ -57,23 +57,23 @@
 
 ## System Context
 
-**Python:** Python 3.13.1  
-**Node:** v22.20.0  
-**OS:** Microsoft Windows 10 Pro  
-**User:** Lian  
+**Python:** {{python_version}}  
+**Node:** {{node_version}}  
+**OS:** {{os_version}}  
+**User:** {{user}}  
 
 **Repo Summary:**  
 ```text
-
+{{repo_summary}}
 ```
 
 ---
 
 ## Diagnostic Summary
 
-- **Backend Status:** unhealthy  
-- **Probable Cause (if unhealthy):** Check /health route and backend logs  
-- **Last Known Healthy Snapshot:** 2025-10-21 23:42:21  
+- **Backend Status:** {{backend_health}}  
+- **Probable Cause (if unhealthy):** {{diagnostic_hint}}  
+- **Last Known Healthy Snapshot:** {{last_healthy_timestamp}}  
 
 ---
 
@@ -82,7 +82,7 @@
 1. Verify `/health` endpoint response.  
 2. Check `backend/logs/app.log` for UTF-8 encoding errors.  
 3. Re-run `Invoke-ContinuitySnapshot` after confirming backend fix.  
-4. Commit with `Invoke-PhaseTrack -p P3.7 -m "Docs + Stability Update"`.  
+4. Commit with `Invoke-PhaseTrack -p {{next_phase}} -m "Docs + Stability Update"`.  
 
 ---
 
@@ -98,6 +98,3 @@
 
 **End of Status Report Template**  
 *To be populated automatically after each successful `Sync-Continuity` run.*
-
----
-Backend Healthy - 2025-10-21 23:42:21

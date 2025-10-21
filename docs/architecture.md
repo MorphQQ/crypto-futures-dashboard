@@ -1,8 +1,8 @@
-# Architecture Overview – Crypto Futures Dashboard
+# Architecture Overview â€“ Crypto Futures Dashboard
 
 ## 1. System Summary
 
-**Backend:** Flask + SocketIO application (`futuresboard`)  
+**Backend:** futuresboard
 **Frontend:** React + Tailwind + Tremor dashboard  
 **Data Source:** Real-time crypto futures market feeds  
 **Persistence:** SQLite / SQLAlchemy  
@@ -27,27 +27,27 @@
 
 ```text
 Invoke-ContinuitySnapshot
-     │
-     ├── continuity_state.json
-     │
-     ├── project_context_v3.json
-     │
-     ├── Invoke-StatusReport
-     │
-     └── status_report.md → Safe-GitPush → GitHub
+     â”‚
+     â”œâ”€â”€ continuity_state.json
+     â”‚
+     â”œâ”€â”€ project_context_v3.json
+     â”‚
+     â”œâ”€â”€ Invoke-StatusReport
+     â”‚
+     â””â”€â”€ status_report.md â†’ Safe-GitPush â†’ GitHub
 ```
 
-Each layer reflects the project’s **live backend status** and **phase tag**.
+Each layer reflects the projectâ€™s **live backend status** and **phase tag**.
 
 ---
 
 ## 4. Current Phase
 
-**Phase:** P3.6 – UTF8 Logging + QuantSummary Stable  
-**Backend:** futuresboard  
+**Phase:** P3.6 - UTF8 Logging + QuantSummary Stable
+**Backend:** futuresboard
 **Maintainer:** Lian Isaac  
 
-(Automatically updated during each `Sync-Continuity` run.)
+(Automatically updated: 2025-10-21 23:32:01)
 
 ---
 
@@ -55,33 +55,33 @@ Each layer reflects the project’s **live backend status** and **phase tag**.
 
 ```text
 crypto-futures-dashboard/
-├── backend/
-│   ├── src/
-│   │   └── futuresboard/
-│   │       ├── app.py
-│   │       ├── metrics.py
-│   │       ├── db.py
-│   │       ├── scraper.py
-│   │       └── futures.db
-│   └── tests/
-│       └── test_api.py
-│
-├── frontend/
-│   ├── src/
-│   │   ├── App.jsx
-│   │   ├── components/
-│   │   └── hooks/
-│   └── public/
-│       └── index.html
-│
-└── docs/
-    ├── architecture.md
-    ├── developer_guide.md
-    ├── quant_blueprint_synced.md
-    ├── continuity_state.md
-    ├── continuity_log.json
-    ├── status_report.md
-    └── status_report_template.md
+â”œâ”€â”€ backend/
+â”‚   â”œâ”€â”€ src/
+â”‚   â”‚   â””â”€â”€ futuresboard/
+â”‚   â”‚       â”œâ”€â”€ app.py
+â”‚   â”‚       â”œâ”€â”€ metrics.py
+â”‚   â”‚       â”œâ”€â”€ db.py
+â”‚   â”‚       â”œâ”€â”€ scraper.py
+â”‚   â”‚       â””â”€â”€ futures.db
+â”‚   â””â”€â”€ tests/
+â”‚       â””â”€â”€ test_api.py
+â”‚
+â”œâ”€â”€ frontend/
+â”‚   â”œâ”€â”€ src/
+â”‚   â”‚   â”œâ”€â”€ App.jsx
+â”‚   â”‚   â”œâ”€â”€ components/
+â”‚   â”‚   â””â”€â”€ hooks/
+â”‚   â””â”€â”€ public/
+â”‚       â””â”€â”€ index.html
+â”‚
+â””â”€â”€ docs/
+    â”œâ”€â”€ architecture.md
+    â”œâ”€â”€ developer_guide.md
+    â”œâ”€â”€ quant_blueprint_synced.md
+    â”œâ”€â”€ continuity_state.md
+    â”œâ”€â”€ continuity_log.json
+    â”œâ”€â”€ status_report.md
+    â””â”€â”€ status_report_template.md
 ```
 
 This structure ensures all operational and documentation layers are version-tracked and recoverable.
@@ -97,7 +97,7 @@ This structure ensures all operational and documentation layers are version-trac
 | `Invoke-ContinuitySnapshot` | Captures backend state, uptime %, and file hashes |
 | `Invoke-StatusReport` | Generates Markdown reports after snapshots |
 | `Invoke-DevOpsAutoSync` | Pushes and backs up all docs to GitHub |
-| `Sync-Continuity` | Runs full continuity workflow (snapshot → commit → push) |
+| `Sync-Continuity` | Runs full continuity workflow (snapshot â†’ commit â†’ push) |
 | `Invoke-PhaseTrack` | Updates quant progress tracker and commits phase notes |
 
 All functions are defined in `Microsoft.PowerShell_profile.ps1` and registered for automatic execution.
@@ -106,11 +106,11 @@ All functions are defined in `Microsoft.PowerShell_profile.ps1` and registered f
 
 ## 7. Future Additions
 
-- 🟦 **Health Tiering:** Enhanced `/health` route with “degraded” status.  
-- 🟧 **Alert Refinement:** Phase P3.7 introduces tier-2 confluence alerts.  
-- 🟩 **Replay Engine:** Simulated backtest engine (Phase P4.0).  
-- 🟨 **Frontend Sync:** Display `status_report.md` summaries in UI widgets.
+- ðŸŸ¦ **Health Tiering:** Enhanced `/health` route with â€œdegradedâ€ status.  
+- ðŸŸ§ **Alert Refinement:** Phase P3.7 introduces tier-2 confluence alerts.  
+- ðŸŸ© **Replay Engine:** Simulated backtest engine (Phase P4.0).  
+- ðŸŸ¨ **Frontend Sync:** Display `status_report.md` summaries in UI widgets.
 
 ---
 
-_Last updated automatically by the Continuity Framework – {{timestamp}}_
+_Last updated automatically by the Continuity Framework â€“ {{timestamp}}_

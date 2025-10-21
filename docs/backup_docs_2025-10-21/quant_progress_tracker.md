@@ -126,5 +126,3 @@ Appended KPI row: | P3 | 25% | Framework v1.3 sync (68 files, 2025-10-21 19:42) 
 | 0.0 | 5324 |
 Z-trend plot saved: z_trend.png (embed in progress_tracker.md)
 | Unknown | 0.0% | AvgZ 0.00 (0 files, 2025-10-21 23:32) |
-
-| P3.6 - UTF8 Logging + QuantSummary Stable | 40.0% | -0.00 | 19 files | 2025-10-21 23:42 |
