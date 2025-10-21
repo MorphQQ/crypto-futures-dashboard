@@ -111,3 +111,10 @@ Appended KPI row: | P3 | 25% | Framework v1.3 sync (4 files, 2025-10-20 23:20) |
 |---------------------|----------------|
 | 0.0 | 20 |
 Z-trend plot saved: z_trend.png (embed in progress_tracker.md)
+| P3 | 25% | Framework v1.3 sync (19 files, 2025-10-21 17:29) |
+Query fallback: tf='15m' rows 5306 (chain to '5m'/total if 0)
+Appended KPI row: | P3 | 25% | Framework v1.3 sync (19 files, 2025-10-21 17:29) |
+| Avg Z-Score ('5m') | DB Rows ('5m') |
+|---------------------|----------------|
+| 0.0 | 5306 |
+Z-trend plot saved: z_trend.png (embed in progress_tracker.md)
