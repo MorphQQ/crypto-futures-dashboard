@@ -1,8 +1,8 @@
 ﻿{
-    "timestamp":  "2025-10-21 19:39:35",
+    "timestamp":  "2025-10-21 21:33:41",
     "phase":  "P3.6 - UTF8 Logging + QuantSummary Stable",
     "backend":  "unhealthy",
-    "uptimePct":  80,
+    "uptimePct":  66.7,
     "file_hashes":  {
                         "metrics.py":  "172E391",
                         "blueprint.py":  "2E30F01",
@@ -10,7 +10,7 @@
                         "quant_engine.py":  "94906CA",
                         "binance_ws_client.py":  "77947D9",
                         "wsgi.py":  "AFEA7F6",
-                        "App.jsx":  "100C17D",
+                        "App.jsx":  "FE87D8B",
                         "app.py":  "53EF4EE",
                         "db.py":  "831A0C8",
                         "cli.py":  "040D524",
