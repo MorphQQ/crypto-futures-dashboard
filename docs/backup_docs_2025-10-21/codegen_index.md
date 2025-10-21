@@ -1,6 +1,6 @@
 # Code Export Index - Crypto Futures Dashboard (v1.0)
 
-_Last updated: 2025-10-21 23:54:28_
+_Last updated: 2025-10-21 23:52:13_
 
 | File | Type | Lines | Size (KB) | Path |
 |------|------|-------:|---------:|------|
@@ -31,19 +31,18 @@ _Last updated: 2025-10-21 23:54:28_
 | backend\tests\test_metrics.py | .py | 11 | 0.4 | backend\tests\test_metrics.py |
 | docs\README.md | .md | 71 | 2.4 | docs\README.md |
 | docs\api_guide.md | .md | 20 | 1.2 | docs\api_guide.md |
-| docs\architecture.md | .md | 116 | 25.9 | docs\architecture.md |
+| docs\architecture.md | .md | 116 | 13.3 | docs\architecture.md |
 | docs\autogen\codegen_v1.py | .py | 173 | 5.9 | docs\autogen\codegen_v1.py |
 | docs\autogen\gen_blueprint_v2.py | .py | 82 | 2.8 | docs\autogen\gen_blueprint_v2.py |
 | docs\autogen\gen_tracker_v2.py | .py | 114 | 4.2 | docs\autogen\gen_tracker_v2.py |
 | docs\backup_docs_2025-10-21\README.md | .md | 71 | 2.4 | docs\backup_docs_2025-10-21\README.md |
 | docs\backup_docs_2025-10-21\api_guide.md | .md | 20 | 1.2 | docs\backup_docs_2025-10-21\api_guide.md |
-| docs\backup_docs_2025-10-21\architecture.md | .md | 116 | 13.3 | docs\backup_docs_2025-10-21\architecture.md |
-| docs\backup_docs_2025-10-21\autogen\codegen_v1.py | .py | 173 | 5.9 | docs\backup_docs_2025-10-21\autogen\codegen_v1.py |
+| docs\backup_docs_2025-10-21\architecture.md | .md | 116 | 7.7 | docs\backup_docs_2025-10-21\architecture.md |
+| docs\backup_docs_2025-10-21\autogen\codegen_v1.py | .py | 173 | 6.0 | docs\backup_docs_2025-10-21\autogen\codegen_v1.py |
 | docs\backup_docs_2025-10-21\autogen\gen_blueprint_v2.py | .py | 82 | 2.8 | docs\backup_docs_2025-10-21\autogen\gen_blueprint_v2.py |
 | docs\backup_docs_2025-10-21\autogen\gen_tracker_v2.py | .py | 114 | 4.2 | docs\backup_docs_2025-10-21\autogen\gen_tracker_v2.py |
 | docs\backup_docs_2025-10-21\codegen.py | .py | 92 | 3.2 | docs\backup_docs_2025-10-21\codegen.py |
-| docs\backup_docs_2025-10-21\codegen_index.md | .md | 92 | 8.4 | docs\backup_docs_2025-10-21\codegen_index.md |
-| docs\backup_docs_2025-10-21\continuity_log.json | .json | 248 | 9.8 | docs\backup_docs_2025-10-21\continuity_log.json |
+| docs\backup_docs_2025-10-21\continuity_log.json | .json | 227 | 9.0 | docs\backup_docs_2025-10-21\continuity_log.json |
 | docs\backup_docs_2025-10-21\continuity_state.json | .json | 22 | 0.9 | docs\backup_docs_2025-10-21\continuity_state.json |
 | docs\backup_docs_2025-10-21\continuity_state.md | .md | 36 | 1.7 | docs\backup_docs_2025-10-21\continuity_state.md |
 | docs\backup_docs_2025-10-21\docs\codegen_index.md | .md | 10 | 0.4 | docs\backup_docs_2025-10-21\docs\codegen_index.md |
@@ -51,16 +50,16 @@ _Last updated: 2025-10-21 23:54:28_
 | docs\backup_docs_2025-10-21\docs_rehaul_plan.md | .md | 140 | 5.9 | docs\backup_docs_2025-10-21\docs_rehaul_plan.md |
 | docs\backup_docs_2025-10-21\index.md | .md | 39 | 1.6 | docs\backup_docs_2025-10-21\index.md |
 | docs\backup_docs_2025-10-21\project_context_v3.json | .json | 14 | 0.5 | docs\backup_docs_2025-10-21\project_context_v3.json |
+| docs\backup_docs_2025-10-21\project_data.json | .json | 375 | 860.6 | docs\backup_docs_2025-10-21\project_data.json |
 | docs\backup_docs_2025-10-21\quant_blueprint.md | .md | 93 | 7.1 | docs\backup_docs_2025-10-21\quant_blueprint.md |
 | docs\backup_docs_2025-10-21\quant_blueprint_synced.md | .md | 9 | 0.3 | docs\backup_docs_2025-10-21\quant_blueprint_synced.md |
-| docs\backup_docs_2025-10-21\quant_progress_tracker.md | .md | 133 | 8.5 | docs\backup_docs_2025-10-21\quant_progress_tracker.md |
+| docs\backup_docs_2025-10-21\quant_progress_tracker.md | .md | 132 | 8.4 | docs\backup_docs_2025-10-21\quant_progress_tracker.md |
 | docs\backup_docs_2025-10-21\roadmap.md | .md | 43 | 6.0 | docs\backup_docs_2025-10-21\roadmap.md |
 | docs\backup_docs_2025-10-21\status_report.md | .md | 103 | 2.6 | docs\backup_docs_2025-10-21\status_report.md |
 | docs\backup_docs_2025-10-21\status_report_template.md | .md | 100 | 2.5 | docs\backup_docs_2025-10-21\status_report_template.md |
 | docs\backup_docs_2025-10-21\testing_harness.md | .md | 21 | 1.3 | docs\backup_docs_2025-10-21\testing_harness.md |
 | docs\backup_docs_2025-10-21\z_history.json | .json | 1 | 0.1 | docs\backup_docs_2025-10-21\z_history.json |
-| docs\codegen_index.md | .md | 92 | 8.4 | docs\codegen_index.md |
-| docs\continuity_log.json | .json | 269 | 10.7 | docs\continuity_log.json |
+| docs\continuity_log.json | .json | 248 | 9.8 | docs\continuity_log.json |
 | docs\continuity_state.json | .json | 22 | 0.9 | docs\continuity_state.json |
 | docs\continuity_state.md | .md | 36 | 1.7 | docs\continuity_state.md |
 | docs\docs\codegen_index.md | .md | 10 | 0.4 | docs\docs\codegen_index.md |
@@ -68,9 +67,10 @@ _Last updated: 2025-10-21 23:54:28_
 | docs\docs_rehaul_plan.md | .md | 140 | 5.9 | docs\docs_rehaul_plan.md |
 | docs\index.md | .md | 39 | 1.6 | docs\index.md |
 | docs\project_context_v3.json | .json | 14 | 0.5 | docs\project_context_v3.json |
+| docs\project_data.json | .json | 375 | 860.6 | docs\project_data.json |
 | docs\quant_blueprint.md | .md | 93 | 7.1 | docs\quant_blueprint.md |
 | docs\quant_blueprint_synced.md | .md | 9 | 0.3 | docs\quant_blueprint_synced.md |
-| docs\quant_progress_tracker.md | .md | 133 | 8.5 | docs\quant_progress_tracker.md |
+| docs\quant_progress_tracker.md | .md | 132 | 8.4 | docs\quant_progress_tracker.md |
 | docs\roadmap.md | .md | 43 | 6.0 | docs\roadmap.md |
 | docs\status_report.md | .md | 103 | 2.6 | docs\status_report.md |
 | docs\status_report_template.md | .md | 100 | 2.5 | docs\status_report_template.md |
