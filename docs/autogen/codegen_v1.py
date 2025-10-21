@@ -13,7 +13,7 @@ Usage:
   cd <project_root>
   python docs/autogen/codegen_v1.py
 """
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent  # autogen → docs → root
+
 import json
 import base64
 import os
@@ -21,7 +21,7 @@ from pathlib import Path
 from datetime import datetime
 
 # === CONFIG ===
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent  # autogen → docs → root
 DOCS_DIR = PROJECT_ROOT / "docs"
 OUTPUT_JSON = DOCS_DIR / "project_data.json"
 OUTPUT_MD = DOCS_DIR / "codegen_index.md"
