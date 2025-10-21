@@ -1,0 +1,18 @@
+{
+  "project": {
+    "name": "Crypto Futures Dashboard",
+    "version": "v1.0",
+    "phase": "Unknown",
+    "uptime_pct": "N/A",
+    "backend_status": "unknown",
+    "last_sync": "2025-10-21 23:42:19"
+  },
+  "code": {
+    "files": []
+  },
+  "metadata": {
+    "updated": "2025-10-21 23:42:19",
+    "total_files": 0,
+    "max_file_size_kb": 976.6
+  }
+}

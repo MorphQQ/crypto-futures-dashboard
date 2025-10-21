@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-\"\"\"
+"""
 codegen_v1.py — Full Continuity Export (DR-P2 Integrated)
 ----------------------------------------------------------
 Scans project directories and exports source files into a single JSON file
@@ -12,7 +12,7 @@ Outputs:
 Usage:
   cd <project_root>
   python docs/autogen/codegen_v1.py
-\"\"\"
+"""
 
 import json
 import base64
@@ -71,8 +71,8 @@ def load_context():
                             ctx.setdefault("timestamp", line.split(":",1)[1].strip())
                         if line.startswith("Phase:"):
                             ctx.setdefault("phase", line.split(":",1)[1].strip())
-    except Exception:
-            pass
+        except Exception:
+            pass  # Fixed: Indent matches try (under for loop)
     return ctx
 
 def safe_b64(s: str) -> str:
@@ -109,7 +109,7 @@ def gen_code_section():
                 entry = summarize_file(file_path)
                 if entry:
                     files.append(entry)
-    return {"files": files}
+    return {"files": files}  # Fixed: Ensure crisp indent at func level
 
 def write_json_safe(path: Path, data):
     tmp = path.with_suffix(".tmp")

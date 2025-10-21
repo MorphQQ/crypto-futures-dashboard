@@ -1,9 +1,9 @@
 # Quant Blueprint (Synced)
 
-## Auto-KPI Update (2025-10-21 23:32)
+## Auto-KPI Update (2025-10-21 23:42)
 | Metric | Value |
 |---------|-------|
 | **Weighted OI (USD)** | \$5.19B |
-| **Phase** | Unknown |
-| **Uptime** | 0.0% |
+| **Phase** | P3.6 - UTF8 Logging + QuantSummary Stable |
+| **Uptime** | 40.0% |
 | **Status** | Weighted OI from 50 pairs |
