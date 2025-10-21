@@ -1,4 +1,4 @@
-# 📊 Project Status Report Template – Crypto Futures Dashboard
+# Project Status Report Template - Crypto Futures Dashboard
 
 **Generated:** {{timestamp}}  
 **Phase:** {{phase}}  
@@ -7,7 +7,7 @@
 
 ---
 
-## 🧭 Overview
+## Overview
 
 | Field | Value |
 |-------|-------|
@@ -19,7 +19,7 @@
 
 ---
 
-## ⚙️ Backend Summary
+## Backend Summary
 
 **Last Snapshot:** {{timestamp}}  
 **Health Check:** {{health_message}}  
@@ -35,14 +35,14 @@
 
 ---
 
-## 📈 Quant Progress Snapshot
+## Quant Progress Snapshot
 
 | Phase | % Complete | Status | Notes |
 |--------|-------------|--------|--------|
-| 1.5 Scaffold | {{phase_15}} | ✅ | Seed + WS Stable |
-| 2 Core | {{phase_2}} | ✅ | TF Switch + Exports |
-| 3 Adv | {{phase_3}} | 🔄 | Weighted OI / Confluence |
-| 4 Grand | {{phase_4}} | ⏳ | Replay Sim Planned |
+| 1.5 Scaffold | {{phase_15}} | Done | Seed + WS Stable |
+| 2 Core | {{phase_2}} | Done | TF Switch + Exports |
+| 3 Adv | {{phase_3}} | In Progress | Weighted OI / Confluence |
+| 4 Grand | {{phase_4}} | Planned | Replay Sim Planned |
 
 ### Quant KPIs
 | KPI | Current | Target | Trend |
@@ -55,7 +55,7 @@
 
 ---
 
-## 🧮 System Context
+## System Context
 
 **Python:** {{python_version}}  
 **Node:** {{node_version}}  
@@ -69,7 +69,7 @@
 
 ---
 
-## 🚦 Diagnostic Summary
+## Diagnostic Summary
 
 - **Backend Status:** {{backend_health}}  
 - **Probable Cause (if unhealthy):** {{diagnostic_hint}}  
@@ -77,7 +77,7 @@
 
 ---
 
-## ✅ Recommendations
+## Recommendations
 
 1. Verify `/health` endpoint response.  
 2. Check `backend/logs/app.log` for UTF-8 encoding errors.  
@@ -86,7 +86,7 @@
 
 ---
 
-## 📅 Next Steps
+## Next Steps
 
 | Goal | Target Phase | ETA |
 |------|----------------|-----|

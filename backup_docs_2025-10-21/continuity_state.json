@@ -1,8 +1,8 @@
 ﻿{
-    "timestamp":  "2025-10-21 22:12:56",
+    "timestamp":  "2025-10-21 22:32:10",
     "phase":  "P3.6 - UTF8 Logging + QuantSummary Stable",
     "backend":  "unhealthy",
-    "uptimePct":  50,
+    "uptimePct":  44.4,
     "file_hashes":  {
                         "metrics.py":  "172E391",
                         "blueprint.py":  "2E30F01",
