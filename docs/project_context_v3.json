@@ -1,17 +1,8 @@
 ﻿{
-    "timestamp":  "2025-10-21 22:32:10",
+    "timestamp":  "2025-10-21 23:32:01",
     "phase":  "P3.6 - UTF8 Logging + QuantSummary Stable",
-    "backend_health":  "Health check failed",
-    "backend_config":  {
-
-                       },
-    "sample_metric":  {
-
-                      },
-    "repo_summary":  {
-
-                     },
-    "uptime_pct":  44.4,
+    "backend_health":  "unhealthy",
+    "uptime_pct":  40,
     "backend_name":  "futuresboard",
     "db_path":  "backend/src/futuresboard/futures.db",
     "system":  {
