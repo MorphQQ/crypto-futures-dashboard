@@ -13,7 +13,7 @@ Usage:
   cd <project_root>
   python docs/autogen/codegen_v1.py
 """
-
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent  # autogen → docs → root
 import json
 import base64
 import os
