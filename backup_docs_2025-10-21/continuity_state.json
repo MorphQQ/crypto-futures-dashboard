@@ -1,7 +1,7 @@
 ﻿{
-    "timestamp":  "2025-10-21 16:57:09",
+    "timestamp":  "2025-10-21 17:03:32",
     "phase":  "P3.6 - UTF8 Logging + QuantSummary Stable",
-    "backend":  "healthy",
+    "backend":  "unhealthy",
     "uptimePct":  100,
     "file_hashes":  {
                         "metrics.py":  "172E391",

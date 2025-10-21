@@ -34,7 +34,7 @@ ALLOWED_EXTS = [
 ]
 
 # Max file size (in bytes) — increase for full project
-MAX_FILE_SIZE = 250_000  # ~250 KB
+MAX_FILE_SIZE = 1000_000  # ~250 KB
 
 # === LOGIC ===
 def gen_code_section():
