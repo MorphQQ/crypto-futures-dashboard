@@ -1,6 +1,6 @@
 # Project Status Report Template - Crypto Futures Dashboard
 
-**Generated:** 2025-10-21 23:52:13  
+**Generated:** 2025-10-21 23:54:28  
 **Phase:** P3.6 - UTF8 Logging + QuantSummary Stable  
 **Backend:** futuresboard  
 **Maintainer:** Lian Isaac  
@@ -21,17 +21,17 @@
 
 ## Backend Summary
 
-**Last Snapshot:** 2025-10-21 23:52:13  
+**Last Snapshot:** 2025-10-21 23:54:28  
 **Health Check:** unhealthy  
 
 ### Key Components
 | File | Hash | Last Updated |
 |------|------|---------------|
-| metrics.py | {{hash_metrics}} | 2025-10-21 23:52:13 |
-| db.py | {{hash_db}} | 2025-10-21 23:52:13 |
-| app.py | {{hash_app}} | 2025-10-21 23:52:13 |
-| scraper.py | {{hash_scraper}} | 2025-10-21 23:52:13 |
-| App.jsx | {{hash_appjsx}} | 2025-10-21 23:52:13 |
+| metrics.py | {{hash_metrics}} | 2025-10-21 23:54:28 |
+| db.py | {{hash_db}} | 2025-10-21 23:54:28 |
+| app.py | {{hash_app}} | 2025-10-21 23:54:28 |
+| scraper.py | {{hash_scraper}} | 2025-10-21 23:54:28 |
+| App.jsx | {{hash_appjsx}} | 2025-10-21 23:54:28 |
 
 ---
 
@@ -73,7 +73,7 @@
 
 - **Backend Status:** unhealthy  
 - **Probable Cause (if unhealthy):** Check /health route and backend logs  
-- **Last Known Healthy Snapshot:** 2025-10-21 23:52:19  
+- **Last Known Healthy Snapshot:** 2025-10-21 23:54:34  
 
 ---
 
@@ -100,4 +100,4 @@
 *To be populated automatically after each successful `Sync-Continuity` run.*
 
 ---
-Backend Healthy - 2025-10-21 23:52:19
+Backend Healthy - 2025-10-21 23:54:34

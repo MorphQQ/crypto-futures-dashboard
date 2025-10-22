@@ -1,66 +1,94 @@
+# Fixed: backend/src/futuresboard/quant_engine.py
+# Changes:
+# - GPT Patch A: Per-symbol/tf Z-scores with window=100.
+# - Query fix: oi_abs_usd AS oi_usd; added long/short pct fetch note.
+# - Incremental: WHERE timestamp > last (simplified).
+
 # backend/src/futuresboard/quant_engine.py
 """
 Quant Engine – Tier 2 Intelligent Metrics Pipeline
 Computes rolling OI Z-score, LS Δ%, imbalance %, funding bias, confluence score.
 """
 
+import os
+import pathlib
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]  # Repo root
+DB_PATH = os.getenv("DB_PATH", str(REPO_ROOT / "backend" / "src" / "futuresboard" / "futures.db"))
+
+
 import sqlite3, numpy as np, pandas as pd, datetime
 
 DB_PATH = "backend/src/futuresboard/futures.db"
 
-def compute_quant_metrics(limit: int = 200):
+def compute_quant_metrics(limit: int = 200, per_symbol_window: int = 100):
+    """
+    Compute quant metrics per symbol/timeframe using a rolling window.
+      - For each symbol/timeframe, take the latest `per_symbol_window` points
+      - Compute OI z-score across that symbol's window (ddof=1 preferred)
+      - Compute confluence and bias
+    Returns list of dict records.
+    """
+    import sqlite3, numpy as np, pandas as pd, datetime
     conn = sqlite3.connect(DB_PATH)
+    last_sync = datetime.datetime.utcnow() - datetime.timedelta(hours=1)  # Or from config
+    # fetch latest rows across symbols, but we will group by symbol/timeframe
     df = pd.read_sql_query("""
-        SELECT symbol, timeframe, oi_usd,
+        SELECT symbol, timeframe, oi_abs_usd AS oi_usd,
                long_account_pct, short_account_pct,
                funding, ls_delta_pct, imbalance, timestamp
-        FROM metrics ORDER BY timestamp DESC LIMIT ?
-    """, conn, params=(limit,))
+        FROM metrics
+        WHERE timestamp > ?
+        ORDER BY timestamp DESC
+        LIMIT ?
+    """, conn, params=(last_sync.isoformat(), limit,))
     conn.close()
     if df.empty:
         return []
-
-    # Ensure all numeric columns are floats (not objects)
-    num_cols = ["oi_usd","long_account_pct","short_account_pct",
-                "funding","ls_delta_pct","imbalance"]
+    # normalize numeric columns
+    num_cols = ["oi_usd","long_account_pct","short_account_pct","funding","ls_delta_pct","imbalance"]
     for c in num_cols:
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0.0)
-
-    # --- OI Z-Score ---
-    df["oi_z"] = (df["oi_usd"] - df["oi_usd"].mean()) / (df["oi_usd"].std(ddof=0) or 1)
-
-    # --- LS Delta / Imbalance ---
-    if "ls_delta_pct" not in df.columns or df["ls_delta_pct"].isna().all():
-        df["ls_delta_pct"] = (df["long_account_pct"] - df["short_account_pct"])
-    if "imbalance" not in df.columns or df["imbalance"].isna().all():
-        df["imbalance"] = (df["long_account_pct"] / (df["short_account_pct"] + 1e-6)) * 100
-
-    # --- Funding Bias ---
-    df["funding_bias"] = pd.to_numeric(df["funding"], errors="coerce").fillna(0.0) * 10000
-
-    # --- Confluence Score ---
-    oi_z_np = df["oi_z"].to_numpy(dtype=float)
-    ls_np = df["ls_delta_pct"].to_numpy(dtype=float)
-    imb_np = df["imbalance"].to_numpy(dtype=float)
-    fb_np = df["funding_bias"].to_numpy(dtype=float)
-
-    df["confluence_score"] = (
-        np.tanh(np.abs(oi_z_np) / 2)
-        + np.tanh(np.abs(ls_np) / 50)
-        + np.tanh(np.abs(imb_np) / 200)
-        + np.tanh(np.abs(fb_np) / 5)
-    ) / 4.0
-
-    # --- Bias Detection ---
-    df["bias"] = np.where(df["confluence_score"] > 0.66, "BULL", "BEAR")
-    df["updated_at"] = datetime.datetime.utcnow().isoformat()
-
-    return df[[
-        "symbol","timeframe","oi_z","ls_delta_pct",
-        "imbalance","funding","confluence_score",
-        "bias","updated_at"
-    ]].to_dict(orient="records")
+    # We'll compute per-group rolling stats
+    out_rows = []
+    grouped = df.sort_values("timestamp").groupby(["symbol","timeframe"], sort=False)
+    for (sym, tf), group in grouped:
+        # use last per_symbol_window rows for this symbol/tf
+        window = group.tail(per_symbol_window)
+        if window.shape[0] < 2:
+            # not enough data for meaningful z-score; still emit placeholder
+            oi_z = 0.0
+        else:
+            mean = window["oi_usd"].mean()
+            std = window["oi_usd"].std(ddof=1) or 1.0
+            oi_z = float((window.iloc[-1]["oi_usd"] - mean) / std)
+        ls_delta = float(window.iloc[-1]["ls_delta_pct"]) if "ls_delta_pct" in window.columns else 0.0
+        imb = float(window.iloc[-1]["imbalance"]) if "imbalance" in window.columns else 0.0
+        funding = float(window.iloc[-1]["funding"]) if "funding" in window.columns else 0.0
+        # funding bias scale (original used *10000)
+        funding_bias = funding * 10000.0
+        # confluence score: normalized, keep same form but ensure numeric arrays
+        # scale factors tuned to expected ranges — keep existing but operate on scalars
+        cs = (
+            np.tanh(abs(oi_z) / 2.0)
+            + np.tanh(abs(ls_delta) / 50.0)
+            + np.tanh(abs(imb) / 200.0)
+            + np.tanh(abs(funding_bias) / 5.0)
+        ) / 4.0
+        bias = "BULL" if cs > 0.66 else "BEAR"
+        updated_at = datetime.datetime.utcnow().isoformat()
+        out_rows.append({
+            "symbol": sym,
+            "timeframe": tf,
+            "oi_z": oi_z,
+            "ls_delta_pct": ls_delta,
+            "imbalance": imb,
+            "funding": funding,
+            "confluence_score": float(np.round(cs, 6)),
+            "bias": bias,
+            "updated_at": updated_at,
+        })
+    return out_rows
 
 
 def update_quant_summary():

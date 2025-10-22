@@ -1,3 +1,13 @@
+# Fixed: backend/src/futuresboard/scraper.py
+# Changes:
+# - GPT Patch C: Fixed f-string and pct func.
+# - Non-blocking emit: get_nowait + sleep 0.1s; maxsize=100.
+# - Moved imports to top; optional colorama.
+# - Added retry/backoff in loop.
+# - TF scheduling: Async tasks per TF interval.
+# - Guards for missing cols in summary.
+# - Fixed async TF tasks: Consistent 4-space indent, no dupe tasks, staggered delays via gather(delay, scrape).
+
 # backend/src/futuresboard/scraper.py
 from __future__ import annotations
 
@@ -7,10 +17,21 @@ import asyncio
 import pathlib
 import json
 import threading
+import random
 from queue import Queue, Empty
 from datetime import datetime
 from dotenv import load_dotenv
 import requests
+import sys
+import re
+
+try:
+    from colorama import Fore, Style, init as colorama_init
+    colorama_init(autoreset=True)
+    HAS_COLORAMA = True
+except ImportError:
+    HAS_COLORAMA = False
+    Fore = Style = type('dummy', (), {})()
 
 load_dotenv()
 
@@ -18,7 +39,7 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 DB_PATH = os.getenv("DB_PATH", str(REPO_ROOT / "backend" / "src" / "futuresboard" / "futures.db"))
 INTERVAL = int(os.getenv("INTERVAL", os.getenv("AUTO_SCRAPE_INTERVAL", "30")))
 
-_emit_queue: Queue = Queue()
+_emit_queue: Queue = Queue(maxsize=100)
 _emit_thread = None
 
 # === Logging setup ===
@@ -47,10 +68,6 @@ def _log(app, *args, level="info"):
     - Works in PowerShell, VSCode, CMD, Linux terminals
     """
 
-    import sys
-    from colorama import Fore, Style, init as colorama_init
-    colorama_init(autoreset=True)
-
     prefix = f"[Continuity:{os.getenv('PHASE', 'P3')}]"
     msg = " ".join(str(a) for a in args)
     text = f"{prefix} {msg}"
@@ -59,28 +76,29 @@ def _log(app, *args, level="info"):
     safe_text = text.encode("utf-8", errors="ignore").decode("utf-8", errors="ignore")
 
     # --- Auto color selection ---
-    color = Style.RESET_ALL
+    color = ""
+    if HAS_COLORAMA:
+        color = Style.RESET_ALL
 
-    # Heuristic: if this is a quant summary line, color intelligently
-    if "ΔOI" in safe_text or "ΔOI" in msg or "ΔOI" in text:
-        if "+" in safe_text and "ΔOI" in safe_text:
-            color = Fore.GREEN
-        elif "-" in safe_text and "ΔOI" in safe_text:
-            color = Fore.RED
-    elif "RSI" in safe_text:
-        try:
-            import re
-            match = re.search(r"RSI\s(\d+\.?\d*)", safe_text)
-            if match:
-                rsi_val = float(match.group(1))
-                if rsi_val > 70:
-                    color = Fore.RED
-                elif rsi_val < 30:
-                    color = Fore.GREEN
-                else:
-                    color = Fore.YELLOW
-        except Exception:
-            pass
+        # Heuristic: if this is a quant summary line, color intelligently
+        if "ΔOI" in safe_text or "ΔOI" in msg or "ΔOI" in text:
+            if "+" in safe_text and "ΔOI" in safe_text:
+                color = Fore.GREEN
+            elif "-" in safe_text and "ΔOI" in safe_text:
+                color = Fore.RED
+        elif "RSI" in safe_text:
+            try:
+                match = re.search(r"RSI\s(\d+\.?\d*)", safe_text)
+                if match:
+                    rsi_val = float(match.group(1))
+                    if rsi_val > 70:
+                        color = Fore.RED
+                    elif rsi_val < 30:
+                        color = Fore.GREEN
+                    else:
+                        color = Fore.YELLOW
+            except Exception:
+                pass
 
     # --- Logging to Flask logger if available ---
     try:
@@ -96,7 +114,7 @@ def _log(app, *args, level="info"):
 
     # --- Always print to console, colorized ---
     try:
-        print(color + safe_text + Style.RESET_ALL)
+        print(color + safe_text + (Style.RESET_ALL if HAS_COLORAMA else ""))
         sys.stdout.flush()
     except Exception:
         pass
@@ -154,19 +172,19 @@ def generate_quant_summary(app, timeframe: str = "5m", per_symbol: int = 3):
 
             oi = newest.get("oi_abs_usd") or 0.0
             vol = newest.get("vol_usd") or 0.0
-            rsi = newest.get("rsi") or 50.0
+            rsi = newest.get("rsi", 50.0)  # Guard
             ls = newest.get(f"global_ls_{timeframe}") or newest.get("global_ls_5m") or None
             ls_prev = prev.get(f"global_ls_{timeframe}") if prev else None
-            top_acc = newest.get("top_ls_accounts") or None
+            top_acc = newest.get("top_ls_accounts") or 0  # Guard
             top_acc_prev = prev.get("top_ls_accounts") if prev else None
 
             def pct(new, old):
                 try:
-                    if old and old != 0:
-                        return (new - old) / old * 100.0
+                    if old is None or old == 0:
+                        return 0.0
+                    return (new - old) / old * 100.0
                 except Exception:
-                    pass
-                return 0.0
+                    return 0.0
 
             oi_delta = pct(oi, prev.get("oi_abs_usd")) if prev else 0.0
             ls_delta = pct(ls, ls_prev) if (ls is not None and ls_prev is not None) else 0.0
@@ -194,35 +212,70 @@ def generate_quant_summary(app, timeframe: str = "5m", per_symbol: int = 3):
 
 
 # ------------------------------
-# Socket Emit Worker
+# Socket Emit Worker (non-blocking)
 # ------------------------------
 def emit_worker(socketio):
     _log(None, "Emit worker started")
-    idle = 0
     while True:
         try:
-            payload = _emit_queue.get(timeout=15)
+            try:
+                payload = _emit_queue.get_nowait()
+            except Empty:
+                time.sleep(0.1)  # Non-blocking poll
+                continue
             if payload and socketio:
                 try:
                     socketio.emit("metrics_update", payload)
                     _log(None, f"Emitted {len(payload.get('data', []))} pairs")
                 except Exception as e:
                     _log(None, f"Emit error: {e}", level="error")
+                    time.sleep(0.5)  # Backoff
             _emit_queue.task_done()
-            idle = 0
-        except Empty:
-            idle += 1
-            if idle % 8 == 0:
-                _log(None, f"Emit worker heartbeat ({idle * 15}s idle)")
-            time.sleep(0.25)
         except Exception as e:
             _log(None, f"Emit worker fatal: {e}", level="error")
             time.sleep(1)
 
 
 # ------------------------------
-# Main Scraper Loop
+# Main Scraper Loop (async TF scheduling)
 # ------------------------------
+async def scrape_tf(app, tf, interval):
+    """Async scraper per TF."""
+    loop = asyncio.get_event_loop()
+    while True:
+        try:
+            _log(app, f"Scrape start tf={tf}")
+            from .metrics import get_all_metrics
+            from .db import save_metrics_v3 as save_metrics
+            metrics = await get_all_metrics(tf=tf)
+            if metrics:
+                saved = save_metrics(metrics, timeframe=tf)
+                if saved > 0:
+                    sample = metrics[0]
+                    oi = sample.get("oi_abs_usd") or 0.0
+                    v = sample.get("vol_usd") or 0.0
+                    s = sample.get("symbol")
+                    _log(app, f"[Quant] Saved {saved} ({tf}) | {s} oi={oi:.0f} vol={v:.0f}")
+
+                    # --- Quant Summary ---
+                    try:
+                        generate_quant_summary(app, timeframe=tf)
+                    except Exception:
+                        _log(app, "[Quant] generate_quant_summary error", level="warning")
+
+                # --- Emit ---
+                payload = {"data": metrics, "phase": os.getenv("PHASE", "P3"), "timestamp": datetime.utcnow().isoformat(timespec="seconds")}
+                try:
+                    _emit_queue.put_nowait(payload)
+                except Exception:
+                    _log(app, "Emit queue full/failed", level="warning")
+            else:
+                _log(app, f"No metrics returned for tf={tf}", level="warning")
+        except Exception as e:
+            _log(app, f"Scrape error tf={tf}: {e}", level="error")
+            await asyncio.sleep(min(120, interval * 2))
+        await asyncio.sleep(interval)
+
 def auto_scrape(app):
     """
     Start scraping loop. Safe to call as background task.
@@ -259,58 +312,20 @@ def auto_scrape(app):
             _emit_thread = threading.Thread(target=emit_worker, args=(socketio,), daemon=True)
             _emit_thread.start()
 
-    if "_shared_loop" not in globals():
-        globals()["_shared_loop"] = asyncio.new_event_loop()
-    loop = globals()["_shared_loop"]
-
-    base_interval = max(5, INTERVAL)
-    tfs = ["5m", "15m", "30m", "1h"]
-    tf_idx = 0
-    backoff = 0.2
-
-    while True:
-        tf = tfs[tf_idx % len(tfs)]
-        try:
-            _log(app, f"Scrape start tf={tf}")
-            metrics = loop.run_until_complete(get_all_metrics(tf=tf))
-            if metrics:
-                try:
-                    saved = save_metrics(metrics, timeframe=tf)
-                    if saved > 0:
-                        sample = metrics[0]
-                        oi = sample.get("oi_abs_usd") or 0.0
-                        v = sample.get("vol_usd") or 0.0
-                        s = sample.get("symbol")
-                        _log(app, f"[Quant] Saved {saved} ({tf}) | {s} oi={oi:.0f} vol={v:.0f}")
-
-                        # --- Quant Summary ---
-                        try:
-                            generate_quant_summary(app, timeframe=tf)
-                        except Exception:
-                            _log(app, "[Quant] generate_quant_summary error", level="warning")
-
-                except Exception as e:
-                    _log(app, f"Save metrics error: {e}", level="warning")
-
-                # --- Emit and sleep ---
-                payload = {"data": metrics, "phase": os.getenv("PHASE", "P3"), "timestamp": datetime.utcnow().isoformat(timespec="seconds")}
-                try:
-                    _emit_queue.put_nowait(payload)
-                except Exception:
-                    _log(app, "Emit queue full/failed", level="warning")
-
-                sleep_time = max(5, base_interval * 0.6)
-                backoff = 0.2
-            else:
-                _log(app, f"No metrics returned for tf={tf}", level="warning")
-                sleep_time = min(120, base_interval * 1.5)
-
-        except Exception as e:
-            _log(app, f"Scrape error tf={tf}: {e}", level="error")
-            sleep_time = min(120, base_interval * 2)
-            backoff = min(backoff * 2, 10)
-            time.sleep(backoff + (base_interval * 0.1))
-
-        finally:
-            tf_idx += 1
-            time.sleep(sleep_time)
+    # Async TF tasks (staggered, no dupes)
+    tf_intervals = {"5m": 300, "15m": 900, "30m": 1800, "1h": 3600}
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    tasks = []
+    for tf in tf_intervals:
+        # Sync stagger: time.sleep (greens via eventlet)
+        time.sleep(random.uniform(0, 10))  # 0-10s delay per TF
+        scrape_task = loop.create_task(scrape_tf(app, tf, tf_intervals[tf]))
+        tasks.append(scrape_task)
+    try:
+        loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+    except KeyboardInterrupt:
+        for task in tasks:
+            task.cancel()
+        loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+    loop.close()

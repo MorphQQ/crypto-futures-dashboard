@@ -1,3 +1,13 @@
+# Fixed: backend/src/futuresboard/metrics.py
+# Changes:
+# - Added semaphore to fetch_metrics.
+# - Increased chunk_size=20; removed per-call sleep (use CCXT rate).
+# - Async L/S fetch with aiohttp.
+# - Added symbol filter call (now works).
+# - Removed duplicate RSI.
+# - Validation for tf/exch in api_metrics.
+# - Fixed weighted_oi: Per-row local weight.
+
 # backend/src/futuresboard/metrics.py
 from __future__ import annotations
 
@@ -5,7 +15,7 @@ import os
 import asyncio
 import random
 from datetime import datetime
-from typing import List
+from typing import List, Dict, Union
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -17,35 +27,31 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 import ccxt.async_support as ccxt_async  # type: ignore
 import numpy as np
 import pandas as pd
+import aiohttp  # For async requests
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, abort
 from .db import save_metrics_v3 as save_metrics, get_latest_metrics, get_metrics_by_symbol
 
+ALLOWED_TFS = ["5m", "15m", "30m", "1h"]
+ALLOWED_EXCHS = ["binance", "bybit"]
 
 metrics_bp = Blueprint("metrics", __name__, url_prefix="/api")
 
 # concurrency guard
-semaphore = asyncio.Semaphore(8)
+semaphore = asyncio.Semaphore(20)  # Increased
 
-def calc_rsi(closes, period=14):
-    arr = np.asarray(closes, dtype=float)
-    if arr.size < period + 1:
-        return 50.0
-    deltas = np.diff(arr)
-    gains = np.where(deltas > 0, deltas, 0.0)
-    losses = np.where(deltas < 0, -deltas, 0.0)
-    avg_gain = gains[:period].mean()
-    avg_loss = losses[:period].mean()
-    if avg_loss == 0:
-        return 100.0 if avg_gain > 0 else 50.0
-    rs = avg_gain / avg_loss
-    rsi = 100 - (100 / (1 + rs))
-    return float(np.round(rsi, 2))
+def to_ms(dt):
+    """Helper: Unix ms from datetime or 0."""
+    return int(dt.timestamp() * 1000) if dt and hasattr(dt, 'timestamp') else 0
 
 @metrics_bp.route("/metrics")
 def api_metrics():
     tf = request.args.get("tf", "5m")
+    if tf not in ALLOWED_TFS:
+        abort(400, "Invalid timeframe")
     exch = request.args.get("exch", "binance")
+    if exch not in ALLOWED_EXCHS:
+        abort(400, "Invalid exchange")
     limit = request.args.get("limit")
     try:
         limit = None if limit is None else int(limit)
@@ -91,18 +97,24 @@ def api_metrics():
 
 @metrics_bp.route("/<symbol>/history")
 def api_history(symbol):
+    if not symbol or len(symbol) > 20:
+        abort(400, "Invalid symbol")
     tf = request.args.get("tf")
+    if tf and tf not in ALLOWED_TFS:
+        abort(400, "Invalid timeframe")
     limit = int(request.args.get("limit", 100))
     try:
         hist = get_metrics_by_symbol(symbol, limit=limit, tf=tf)
         out = []
         for m in hist:
+            col = f"global_ls_{tf or m.timeframe}" if tf else "global_ls_5m"
+            ls_val = getattr(m, col, None)
             out.append({
-                "time": int(m.timestamp.timestamp() * 1000) if m.timestamp else 0,
+                "time": to_ms(m.timestamp),
                 "price": m.price,
                 "oi_abs_usd": m.oi_abs_usd,
                 "vol_usd": m.vol_usd,
-                f"global_ls_{tf or m.timeframe}": getattr(m, f"global_ls_{tf or m.timeframe}", None),
+                "global_ls": ls_val,
             })
         return jsonify(out)
     except Exception as e:
@@ -113,7 +125,7 @@ def add_metrics_route(app):
     # placeholder - kept for compatibility with app.init_app
     return
 
-async def get_all_metrics(tf="5m", exch="binance", limit=20, offset=0) -> List[dict]:
+async def get_all_metrics(tf="5m", exch="binance", limit=20, offset=0) -> List[Dict[str, Union[float, str, None]]]:
     """
     Primary async fetch. When DEV_MODE is true, return mocks quickly.
     Otherwise use ccxt to fetch top pairs and call fetch_metrics concurrently.
@@ -146,9 +158,9 @@ async def get_all_metrics(tf="5m", exch="binance", limit=20, offset=0) -> List[d
         "options": {"defaultType": "future"},
     })
     try:
+        await exchange.load_markets()  # Unified symbols
         tickers = await exchange.fetch_tickers()
         # simple select of top quoteVolume futures pairs including USDT
-        markets = list(tickers.items())
         markets = [k for k, v in tickers.items() if "/USDT:USDT" in k and v.get("quoteVolume", 0) > 1e7]
         # sort by quoteVolume
         markets_sorted = sorted(markets, key=lambda s: tickers[s].get("quoteVolume", 0), reverse=True)
@@ -157,7 +169,7 @@ async def get_all_metrics(tf="5m", exch="binance", limit=20, offset=0) -> List[d
         raw_symbols = [s.replace("/USDT:USDT", "USDT") for s in markets_sorted]
 
         results = []
-        chunk_size = 10
+        chunk_size = 20  # Increased
         for i in range(0, len(raw_symbols), chunk_size):
             chunk = raw_symbols[i: i + chunk_size]
             tasks = [fetch_metrics(exchange, s.replace("USDT", "/USDT:USDT"), s, tf) for s in chunk]
@@ -169,16 +181,30 @@ async def get_all_metrics(tf="5m", exch="binance", limit=20, offset=0) -> List[d
                 if isinstance(r, dict) and "error" in r:
                     continue
                 results.append(r)
-            # small jitter per chunk
+            # jitter per chunk
             await asyncio.sleep(random.uniform(0.1, 0.5))
-        # compute weighted OI if vol_usd present
+        # compute weighted OI if vol_usd present (local per row)
         if len(results) > 0:
-            df = pd.DataFrame(results)
-            if "vol_usd" in df.columns and df["vol_usd"].sum() > 0:
-                weights = df["vol_usd"] / df["vol_usd"].sum()
-                weighted_oi = (df["oi_abs_usd"] * weights).sum()
-                for i, _ in enumerate(results):
-                    results[i]["weighted_oi_usd"] = float(weighted_oi)
+            # Batch fetch recent for weights (per-symbol, limit=20)
+            symbols = list(set(r['symbol'] for r in results))
+            recent_vols = {}  # sym → [vols]
+            for sym in symbols:
+                try:
+                    last20 = get_latest_metrics(limit=20, symbol=sym, tf=tf)  # From DB
+                    vols = np.array([float(m.vol_usd or 0.0) for m in last20])
+                    ois_ = np.array([float(m.oi_abs_usd or 0.0) for m in last20])
+                    recent_vols[sym] = (vols, ois_)
+                except: pass  # Fallback single
+            for r in results:
+                sym = r['symbol']
+                if sym in recent_vols:
+                    vols, ois_ = recent_vols[sym]
+                    if len(vols) > 1 and vols.sum() > 0:
+                        r["weighted_oi_usd"] = np.average(ois_, weights=vols)  # Rolling!
+                    else:
+                        r["weighted_oi_usd"] = r.get("oi_abs_usd", 0)
+                else:
+                    r["weighted_oi_usd"] = r.get("oi_abs_usd", 0)
         return results
     finally:
         await exchange.close()
@@ -187,34 +213,38 @@ async def fetch_metrics(exchange, ccxt_symbol, raw_symbol, tf="5m"):
     """
     Fetch open interest, ticker, L/S, klines etc. Returns a dict aligned with save_metrics.
     """
-    try:
-        await asyncio.sleep(0.05)  # small throttle
-        oi_data = await exchange.fetch_open_interest(ccxt_symbol)
-        ticker = await exchange.fetch_ticker(ccxt_symbol)
-        last = ticker.get("last") or ticker.get("close") or 0.0
-        oi_amount = oi_data.get("openInterestAmount", 0)
-        oi_usd = float(oi_amount) * float(last)
-        vol_usd = float(ticker.get("quoteVolume", 0)) or 0.0
-
-        # best-effort L/S via public endpoints using requests (sync) - keep time small
-        global_ls = None
+    async with semaphore:
         try:
-            from .scraper import send_public_request
-            _, ls_resp = send_public_request("/futures/data/globalLongShortAccountRatio", {"symbol": raw_symbol, "period": tf})
-            if ls_resp and isinstance(ls_resp, list) and len(ls_resp) > 0:
-                global_ls = ls_resp[0].get("longShortRatio")
-        except Exception:
-            global_ls = None
+            oi_data = await exchange.fetch_open_interest(ccxt_symbol)
+            ticker = await exchange.fetch_ticker(ccxt_symbol)
+            last = ticker.get("last") or ticker.get("close") or 0.0
+            oi_amount = oi_data.get("openInterestAmount", 0)
+            oi_usd = float(oi_amount) * float(last)
+            vol_usd = float(ticker.get("quoteVolume", 0)) or 0.0
 
-        result = {
-            "symbol": raw_symbol.replace("USDT", ""),
-            "Price": f"${last:,.2f}",
-            "oi_abs_usd": float(oi_usd),
-            "vol_usd": float(vol_usd),
-            f"Global_LS_{tf}": float(global_ls) if global_ls is not None else None,
-            "timestamp": datetime.utcnow().timestamp(),
-            "timeframe": tf,
-        }
-        return result
-    except Exception as e:
-        return {"symbol": raw_symbol.replace("USDT", ""), "error": str(e)}
+            # Async L/S fetch
+            global_ls = None
+            try:
+                api_base = current_app.config.get("API_BASE_URL", "https://fapi.binance.com") if current_app else "https://fapi.binance.com"
+                url = f"{api_base}/futures/data/globalLongShortAccountRatio?symbol={raw_symbol}&period={tf}"
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                        if resp.status == 200:
+                            ls_resp = await resp.json()
+                            if ls_resp and isinstance(ls_resp, list) and len(ls_resp) > 0:
+                                global_ls = ls_resp[0].get("longShortRatio")
+            except Exception:
+                global_ls = None
+
+            result = {
+                "symbol": raw_symbol.replace("USDT", ""),
+                "Price": f"${last:,.2f}",
+                "oi_abs_usd": float(oi_usd),
+                "vol_usd": float(vol_usd),
+                f"Global_LS_{tf}": float(global_ls) if global_ls is not None else None,
+                "timestamp": datetime.utcnow().timestamp(),
+                "timeframe": tf,
+            }
+            return result
+        except Exception as e:
+            return {"symbol": raw_symbol.replace("USDT", ""), "error": str(e)}

@@ -14,9 +14,3 @@
   "python.defaultInterpreterPath": ".venv/Scripts/python.exe",  // Confirm .venv
   "python.terminal.activateEnvironment": true  // Activate venv on terminal open
 }
-{
-  "python.analysis.diagnosticSeverityOverrides": {
-    "reportMissingImports": "none",
-    "reportMissingModuleSource": "none"
-  }
-}

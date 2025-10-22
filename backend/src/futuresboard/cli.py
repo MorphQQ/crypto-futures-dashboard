@@ -1,3 +1,6 @@
+# Fixed: backend/src/futuresboard/cli.py
+# Additional Fix: Added import asyncio for single_scrape loop.
+
 from __future__ import annotations
 
 import argparse
@@ -6,6 +9,7 @@ import pathlib
 import sys
 import os  # For str() compat if needed
 import traceback  # For error print
+import asyncio  # Added for single_scrape
 
 import futuresboard.app
 import futuresboard.scraper
@@ -17,7 +21,6 @@ log = logging.getLogger(__name__)
 
 
 def main():
-    print("CLI Loaded: Starting main()")  # Debug: Confirms entry
     parser = argparse.ArgumentParser(prog="futuresboard")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument(
@@ -48,15 +51,11 @@ def main():
     )
     args = parser.parse_args()
 
-    print(f"Args parsed: config_dir={args.config_dir}, port={args.port}, scrape_only={args.scrape_only}")  # Debug: Argparse OK?
-
     # Default config_dir to root/config (backend/ -> ../config for json/db)
     if args.config_dir is None:
         args.config_dir = pathlib.Path.cwd().parent / "config"
     else:
         args.config_dir = args.config_dir.resolve()
-
-    print(f"Resolved config_dir: {args.config_dir} (exists? {args.config_dir.exists()})")  # Debug: Path check
 
     # .env load from backend/ (cwd=backend, self)
     backend_dir = pathlib.Path.cwd()
@@ -89,8 +88,20 @@ def main():
         sys.exit(1)
 
     if args.scrape_only:
+        # Single-run scrape (non-loop)
+        def single_scrape(app):
+            from .metrics import get_all_metrics
+            from .db import save_metrics_v3 as save_metrics
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            tf = "5m"  # Default
+            metrics = loop.run_until_complete(get_all_metrics(tf=tf))
+            if metrics:
+                saved = save_metrics(metrics, timeframe=tf)
+                print(f"Single scrape saved {saved} for {tf}")
+            loop.close()
         with app.app_context():
-            futuresboard.scraper.scrape()
+            single_scrape(app)
         sys.exit(0)
 
     app.run(host=args.host, port=args.port)  # Direct str host

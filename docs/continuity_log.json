@@ -265,5 +265,89 @@
                        "version.py":  "A28548B",
                        "__init__.py":  "D2835BF"
                    }
+    },
+    {
+        "timestamp":  "2025-10-22 13:45:56",
+        "phase":  "P3.6x-Revamp-Bugs",
+        "backend":  "unhealthy",
+        "hashes":  {
+                       "metrics.py":  "B6A8CED",
+                       "blueprint.py":  "2E30F01",
+                       "utils.py":  "B95F2D8",
+                       "quant_engine.py":  "F319C97",
+                       "binance_ws_client.py":  "71A8654",
+                       "wsgi.py":  "AFEA7F6",
+                       "App.jsx":  "FE87D8B",
+                       "app.py":  "E9B09B2",
+                       "db.py":  "00E619E",
+                       "cli.py":  "4ABCA81",
+                       "scraper.py":  "65B759D",
+                       "config.py":  "1DBB3AC",
+                       "version.py":  "A28548B",
+                       "__init__.py":  "D2835BF"
+                   }
+    },
+    {
+        "timestamp":  "2025-10-22 14:20:31",
+        "phase":  "P3.6 - Pre-Fix Snapshot",
+        "backend":  "unhealthy",
+        "hashes":  {
+                       "metrics.py":  "B6A8CED",
+                       "blueprint.py":  "2E30F01",
+                       "utils.py":  "B95F2D8",
+                       "quant_engine.py":  "F319C97",
+                       "binance_ws_client.py":  "71A8654",
+                       "wsgi.py":  "AFEA7F6",
+                       "App.jsx":  "FE87D8B",
+                       "app.py":  "E9B09B2",
+                       "db.py":  "00E619E",
+                       "cli.py":  "4ABCA81",
+                       "scraper.py":  "65B759D",
+                       "config.py":  "1DBB3AC",
+                       "version.py":  "A28548B",
+                       "__init__.py":  "D2835BF"
+                   }
+    },
+    {
+        "timestamp":  "2025-10-22 14:20:45",
+        "phase":  "P3.6 - Weighted OI Fix",
+        "backend":  "unhealthy",
+        "hashes":  {
+                       "metrics.py":  "B6A8CED",
+                       "blueprint.py":  "2E30F01",
+                       "utils.py":  "B95F2D8",
+                       "quant_engine.py":  "F319C97",
+                       "binance_ws_client.py":  "71A8654",
+                       "wsgi.py":  "AFEA7F6",
+                       "App.jsx":  "FE87D8B",
+                       "app.py":  "E9B09B2",
+                       "db.py":  "00E619E",
+                       "cli.py":  "4ABCA81",
+                       "scraper.py":  "65B759D",
+                       "config.py":  "1DBB3AC",
+                       "version.py":  "A28548B",
+                       "__init__.py":  "D2835BF"
+                   }
+    },
+    {
+        "timestamp":  "2025-10-22 16:40:02",
+        "phase":  "Emergency - Backend Regression",
+        "backend":  "unhealthy",
+        "hashes":  {
+                       "metrics.py":  "B24EBDE",
+                       "blueprint.py":  "2E30F01",
+                       "utils.py":  "B95F2D8",
+                       "quant_engine.py":  "7489D87",
+                       "binance_ws_client.py":  "7BB6288",
+                       "wsgi.py":  "AFEA7F6",
+                       "App.jsx":  "FE87D8B",
+                       "app.py":  "851A863",
+                       "db.py":  "0AD1E81",
+                       "cli.py":  "4ABCA81",
+                       "scraper.py":  "65B759D",
+                       "config.py":  "6C25703",
+                       "version.py":  "A28548B",
+                       "__init__.py":  "FE86BA5"
+                   }
     }
 ]

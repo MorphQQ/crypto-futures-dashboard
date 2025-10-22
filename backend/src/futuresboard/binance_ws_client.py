@@ -1,47 +1,60 @@
+# backend/src/futuresboard/binance_ws_client.py
+"""
+Modern Binance Futures WS client using CCXT ≥1.95 (Pro features merged).
+Replaces custom aiohttp code. Streams mark price and open interest for selected pairs.
+"""
+
 import asyncio
-import json
-import aiohttp
-from typing import List
+import ccxt.async_support as ccxt
+from datetime import datetime
+import logging
+from .db import get_db_conn
 
-BINANCE_WS_BASE = "wss://fstream.binance.com/stream?streams="  # For USDS-M futures
+logger = logging.getLogger(__name__)
 
-async def connect_and_listen(session: aiohttp.ClientSession, url: str, handle_msg):
+
+async def stream_worker(pairs):
+    """Continuously stream futures data via CCXT's built-in websocket API."""
+    exchange = ccxt.binance({
+        "enableRateLimit": True,
+        "options": {"defaultType": "future"},
+    })
     try:
-        async with session.ws_connect(url, heartbeat=150) as ws:  # Adjusted heartbeat
-            print("Connected to", url)
-            async for msg in ws:
-                if msg.type == aiohttp.WSMsgType.TEXT:
-                    data = json.loads(msg.data)
-                    await handle_msg(data)
-                elif msg.type == aiohttp.WSMsgType.PING:
-                    await ws.pong()
-                elif msg.type == aiohttp.WSMsgType.ERROR:
-                    print("WS Error:", msg)
-                    break
-    except aiohttp.ClientError as e:
-        print("Connection error:", e)
-        await asyncio.sleep(5)  # Simple backoff alternative
+        while True:
+            for sym in pairs:
+                symbol = f"{sym.replace('USDT', '')}/USDT:USDT"
+                try:
+                    ticker = await exchange.watch_ticker(symbol)
+                    mark_price = float(ticker.get("last") or ticker.get("close") or 0.0)
 
-async def build_combined_stream(pair_streams: List[str]) -> str:
-    return BINANCE_WS_BASE + "/".join(pair_streams)
+                    # optional: watch open interest (requires futures)
+                    try:
+                        oi = await exchange.watch_open_interest(symbol)
+                        open_interest = float(oi.get("openInterestAmount") or 0.0)
+                    except Exception:
+                        open_interest = None
 
-async def handle_message(data):
-    # Example: Extract markPrice, OI if subscribed
-    stream = data["stream"]
-    if "markPrice" in stream:
-        print("Mark Price Update:", data["data"]["p"])  # Price
-    # Push to queue/DB here
+                    # save to DB (lightweight inline write)
+                    conn = get_db_conn()
+                    cur = conn.cursor()
+                    cur.execute(
+                        """
+                        INSERT OR REPLACE INTO metrics (symbol, timeframe, oi_abs_usd, price, timestamp)
+                        VALUES (?, '1h', ?, ?, ?)
+                        """,
+                        (sym.replace("USDT", ""), open_interest or 0.0, mark_price, datetime.utcnow()),
+                    )
+                    conn.commit()
+                    conn.close()
+                    logger.info(f"[WS] {sym}: price={mark_price:.2f}, OI={open_interest}")
+                except Exception as e:
+                    logger.warning(f"[WS] Error for {sym}: {e}")
+                    await asyncio.sleep(2)
+            await asyncio.sleep(1)
+    finally:
+        await exchange.close()
 
-async def start_stream_worker(pairs: List[str]):
-    streams = [f"{p.lower()}@markPrice@1s" for p in pairs]  # 1s updates
-    streams += [f"{p.lower()}@openInterest@1h" for p in pairs]  # OI hourly
-    url = await build_combined_stream(streams)
-    async with aiohttp.ClientSession() as session:
-        while True:  # Reconnect loop
-            await connect_and_listen(session, url, handle_message)
-            await asyncio.sleep(5)  # Backoff
 
-# Example run (in futuresboard: call in thread)
-if __name__ == "__main__":
-    pairs = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
-    asyncio.run(start_stream_worker(pairs))
+def start_stream_worker(pairs):
+    """Synchronous entry point for app.py background thread."""
+    asyncio.run(stream_worker(pairs))

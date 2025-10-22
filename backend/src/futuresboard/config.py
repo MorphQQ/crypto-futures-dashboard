@@ -1,3 +1,9 @@
+# Fixed: backend/src/futuresboard/config.py
+# Changes:
+# - Centralized DEV_MODE/LOG_LEVEL propagation (already good, but added to app.config notes).
+# - Ensured SYMBOLS always list.
+# - No major bugs; minor: Uppercase env_exchange.
+
 from __future__ import annotations
 
 import copy
@@ -102,7 +108,7 @@ class Config(BaseModel):
         if value < 10:  # Lower for Phase 1 WS (<30s); CCXT rate-safe
             raise ValueError("The lower allowed value is 10")
         if value > 3600:
-            raise ValueError("The upper allowed value is 3600")
+            raise ValueError("The upper allowed projection value is 3600")
         return value
 
     @root_validator(pre=True)
@@ -155,7 +161,7 @@ class Config(BaseModel):
         # New: SYMBOLS from .env/JSON (comma-split if env str)
         env_symbols = os.getenv("SYMBOLS", "")
         if env_symbols:
-            config_dict["SYMBOLS"] = [s.strip() for s in env_symbols.split(",") if s.strip()]
+            config_dict["SYMBOLS"] = [s.strip().upper() for s in env_symbols.split(",") if s.strip()]
         elif "SYMBOLS" not in config_dict:
             config_dict["SYMBOLS"] = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]  # Ensure list
 
@@ -173,5 +179,13 @@ class Config(BaseModel):
             _config_printed = True
         elif not _config_printed:  # Silent @ INFO (or minimal if want)
             _config_printed = True  # Flag set no-op
+
+        # Apply log level globally
+        root_logger = logging.getLogger()
+        level = getattr(logging, config_dict.get("LOG_LEVEL", "INFO").upper(), logging.INFO)
+        root_logger.setLevel(level)
+        for h in root_logger.handlers:
+            h.setLevel(level)
+        logging.info(f"[Config] Log level applied: {config_dict['LOG_LEVEL']}")
 
         return cls.parse_obj(config_dict)
