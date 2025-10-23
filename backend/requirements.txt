@@ -1,11 +1,27 @@
-ccxt==4.5.11
-sqlalchemy==2.0.44
-flask==3.1.2
-flask-socketio==5.5.1
-numpy==2.3.4
-pandas==2.3.3
-matplotlib==3.10.7
-scipy==1.16.2
-aiohttp>=3.10.11
-requests==2.32.3
-python-dotenv==1.0.1
+flask-socketio
+numpy
+pandas
+matplotlib
+scipy
+aiohttp
+requests
+python-dotenv
+quart
+hypercorn
+python-socketio
+python-engineio
+# Async web framework
+quart
+quart-cors
+python-socketio
+
+# Async I/O and networking
+aiohttp
+asyncpg
+
+# Environment and logging
+python-dotenv
+
+# Data processing and numerical
+numpy
+

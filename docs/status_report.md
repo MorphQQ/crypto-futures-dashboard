@@ -1,7 +1,7 @@
 # Project Status Report Template - Crypto Futures Dashboard
 
-**Generated:** 2025-10-22 14:20:45  
-**Phase:** P3.6 - Weighted OI Fix  
+**Generated:** 2025-10-23 23:02:37  
+**Phase:** P3.8 - Confluence Layer  
 **Backend:** futuresboard  
 **Maintainer:** Lian Isaac  
 
@@ -11,7 +11,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Phase** | P3.6 - Weighted OI Fix |
+| **Phase** | P3.8 - Confluence Layer |
 | **Backend Health** | unhealthy |
 | **Uptime (7-Sample)** | 40.0 % |
 | **System** | Microsoft Windows 10 Pro |
@@ -21,17 +21,17 @@
 
 ## Backend Summary
 
-**Last Snapshot:** 2025-10-22 14:20:45  
+**Last Snapshot:** 2025-10-23 23:02:37  
 **Health Check:** unhealthy  
 
 ### Key Components
 | File | Hash | Last Updated |
 |------|------|---------------|
-| metrics.py | {{hash_metrics}} | 2025-10-22 14:20:45 |
-| db.py | {{hash_db}} | 2025-10-22 14:20:45 |
-| app.py | {{hash_app}} | 2025-10-22 14:20:45 |
-| scraper.py | {{hash_scraper}} | 2025-10-22 14:20:45 |
-| App.jsx | {{hash_appjsx}} | 2025-10-22 14:20:45 |
+| metrics.py | {{hash_metrics}} | 2025-10-23 23:02:37 |
+| db.py | {{hash_db}} | 2025-10-23 23:02:37 |
+| app.py | {{hash_app}} | 2025-10-23 23:02:37 |
+| scraper.py | {{hash_scraper}} | 2025-10-23 23:02:37 |
+| App.jsx | {{hash_appjsx}} | 2025-10-23 23:02:37 |
 
 ---
 
@@ -73,7 +73,7 @@
 
 - **Backend Status:** unhealthy  
 - **Probable Cause (if unhealthy):** Check /health route and backend logs  
-- **Last Known Healthy Snapshot:** 2025-10-22 14:20:54  
+- **Last Known Healthy Snapshot:** 2025-10-23 23:02:46  
 
 ---
 
@@ -100,4 +100,4 @@
 *To be populated automatically after each successful `Sync-Continuity` run.*
 
 ---
-Backend Healthy - 2025-10-22 14:20:54
+Backend Healthy - 2025-10-23 23:02:46

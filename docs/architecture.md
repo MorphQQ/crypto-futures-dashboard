@@ -1,4 +1,4 @@
-# Architecture Overview â€“ Crypto Futures Dashboard
+# Architecture Overview ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ Crypto Futures Dashboard
 
 ## 1. System Summary
 
@@ -27,27 +27,27 @@
 
 ```text
 Invoke-ContinuitySnapshot
-     â”‚
-     â”œâ”€â”€ continuity_state.json
-     â”‚
-     â”œâ”€â”€ project_context_v3.json
-     â”‚
-     â”œâ”€â”€ Invoke-StatusReport
-     â”‚
-     â””â”€â”€ status_report.md â†’ Safe-GitPush â†’ GitHub
+     ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡
+     ÃƒÂ¢Ã¢â‚¬ÂÃ…â€œÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ continuity_state.json
+     ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡
+     ÃƒÂ¢Ã¢â‚¬ÂÃ…â€œÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ project_context_v3.json
+     ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡
+     ÃƒÂ¢Ã¢â‚¬ÂÃ…â€œÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Invoke-StatusReport
+     ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡
+     ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬ÂÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ status_report.md ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Safe-GitPush ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ GitHub
 ```
 
-Each layer reflects the projectâ€™s **live backend status** and **phase tag**.
+Each layer reflects the projectÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢s **live backend status** and **phase tag**.
 
 ---
 
 ## 4. Current Phase
 
-**Phase:** P3.6 - Weighted OI Fix
+**Phase:** P3.7 - Verified Self-Healing
 **Backend:** futuresboard
 **Maintainer:** Lian Isaac  
 
-(Automatically updated: 2025-10-22 14:20:45)
+(Automatically updated: 2025-10-23 11:15:52)
 
 ---
 
@@ -55,33 +55,33 @@ Each layer reflects the projectâ€™s **live backend status** and **phase tag
 
 ```text
 crypto-futures-dashboard/
-â”œâ”€â”€ backend/
-â”‚   â”œâ”€â”€ src/
-â”‚   â”‚   â””â”€â”€ futuresboard/
-â”‚   â”‚       â”œâ”€â”€ app.py
-â”‚   â”‚       â”œâ”€â”€ metrics.py
-â”‚   â”‚       â”œâ”€â”€ db.py
-â”‚   â”‚       â”œâ”€â”€ scraper.py
-â”‚   â”‚       â””â”€â”€ futures.db
-â”‚   â””â”€â”€ tests/
-â”‚       â””â”€â”€ test_api.py
-â”‚
-â”œâ”€â”€ frontend/
-â”‚   â”œâ”€â”€ src/
-â”‚   â”‚   â”œâ”€â”€ App.jsx
-â”‚   â”‚   â”œâ”€â”€ components/
-â”‚   â”‚   â””â”€â”€ hooks/
-â”‚   â””â”€â”€ public/
-â”‚       â””â”€â”€ index.html
-â”‚
-â””â”€â”€ docs/
-    â”œâ”€â”€ architecture.md
-    â”œâ”€â”€ developer_guide.md
-    â”œâ”€â”€ quant_blueprint_synced.md
-    â”œâ”€â”€ continuity_state.md
-    â”œâ”€â”€ continuity_log.json
-    â”œâ”€â”€ status_report.md
-    â””â”€â”€ status_report_template.md
+ÃƒÂ¢Ã¢â‚¬ÂÃ…â€œÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ backend/
+ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡   ÃƒÂ¢Ã¢â‚¬ÂÃ…â€œÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ src/
+ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡   ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡   ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬ÂÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ futuresboard/
+ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡   ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡       ÃƒÂ¢Ã¢â‚¬ÂÃ…â€œÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ app.py
+ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡   ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡       ÃƒÂ¢Ã¢â‚¬ÂÃ…â€œÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ metrics.py
+ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡   ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡       ÃƒÂ¢Ã¢â‚¬ÂÃ…â€œÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ db.py
+ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡   ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡       ÃƒÂ¢Ã¢â‚¬ÂÃ…â€œÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ scraper.py
+ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡   ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡       ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬ÂÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ futures.db
+ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡   ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬ÂÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ tests/
+ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡       ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬ÂÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ test_api.py
+ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡
+ÃƒÂ¢Ã¢â‚¬ÂÃ…â€œÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ frontend/
+ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡   ÃƒÂ¢Ã¢â‚¬ÂÃ…â€œÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ src/
+ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡   ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡   ÃƒÂ¢Ã¢â‚¬ÂÃ…â€œÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ App.jsx
+ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡   ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡   ÃƒÂ¢Ã¢â‚¬ÂÃ…â€œÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ components/
+ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡   ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡   ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬ÂÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ hooks/
+ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡   ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬ÂÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ public/
+ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡       ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬ÂÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ index.html
+ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬Å¡
+ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬ÂÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ docs/
+    ÃƒÂ¢Ã¢â‚¬ÂÃ…â€œÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ architecture.md
+    ÃƒÂ¢Ã¢â‚¬ÂÃ…â€œÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ developer_guide.md
+    ÃƒÂ¢Ã¢â‚¬ÂÃ…â€œÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ quant_blueprint_synced.md
+    ÃƒÂ¢Ã¢â‚¬ÂÃ…â€œÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ continuity_state.md
+    ÃƒÂ¢Ã¢â‚¬ÂÃ…â€œÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ continuity_log.json
+    ÃƒÂ¢Ã¢â‚¬ÂÃ…â€œÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ status_report.md
+    ÃƒÂ¢Ã¢â‚¬ÂÃ¢â‚¬ÂÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ status_report_template.md
 ```
 
 This structure ensures all operational and documentation layers are version-tracked and recoverable.
@@ -97,7 +97,7 @@ This structure ensures all operational and documentation layers are version-trac
 | `Invoke-ContinuitySnapshot` | Captures backend state, uptime %, and file hashes |
 | `Invoke-StatusReport` | Generates Markdown reports after snapshots |
 | `Invoke-DevOpsAutoSync` | Pushes and backs up all docs to GitHub |
-| `Sync-Continuity` | Runs full continuity workflow (snapshot â†’ commit â†’ push) |
+| `Sync-Continuity` | Runs full continuity workflow (snapshot ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ commit ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ push) |
 | `Invoke-PhaseTrack` | Updates quant progress tracker and commits phase notes |
 
 All functions are defined in `Microsoft.PowerShell_profile.ps1` and registered for automatic execution.
@@ -106,13 +106,13 @@ All functions are defined in `Microsoft.PowerShell_profile.ps1` and registered f
 
 ## 7. Future Additions
 
-- ðŸŸ¦ **Health Tiering:** Enhanced `/health` route with â€œdegradedâ€ status.  
-- ðŸŸ§ **Alert Refinement:** Phase P3.7 introduces tier-2 confluence alerts.  
-- ðŸŸ© **Replay Engine:** Simulated backtest engine (Phase P4.0).  
-- ðŸŸ¨ **Frontend Sync:** Display `status_report.md` summaries in UI widgets.
+- ÃƒÂ°Ã…Â¸Ã…Â¸Ã‚Â¦ **Health Tiering:** Enhanced `/health` route with ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œdegradedÃƒÂ¢Ã¢â€šÂ¬Ã‚Â status.  
+- ÃƒÂ°Ã…Â¸Ã…Â¸Ã‚Â§ **Alert Refinement:** Phase P3.7 introduces tier-2 confluence alerts.  
+- ÃƒÂ°Ã…Â¸Ã…Â¸Ã‚Â© **Replay Engine:** Simulated backtest engine (Phase P4.0).  
+- ÃƒÂ°Ã…Â¸Ã…Â¸Ã‚Â¨ **Frontend Sync:** Display `status_report.md` summaries in UI widgets.
 
 ---
 
-_Last updated automatically by the Continuity Framework â€“ {{timestamp}}_
+_Last updated automatically by the Continuity Framework ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ {{timestamp}}_
 inuity Data Flow
 

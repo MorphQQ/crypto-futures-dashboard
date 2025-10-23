@@ -225,14 +225,15 @@ async def fetch_metrics(exchange, ccxt_symbol, raw_symbol, tf="5m"):
             # Async L/S fetch
             global_ls = None
             try:
-                api_base = current_app.config.get("API_BASE_URL", "https://fapi.binance.com") if current_app else "https://fapi.binance.com"
-                url = f"{api_base}/futures/data/globalLongShortAccountRatio?symbol={raw_symbol}&period={tf}"
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
-                        if resp.status == 200:
-                            ls_resp = await resp.json()
-                            if ls_resp and isinstance(ls_resp, list) and len(ls_resp) > 0:
-                                global_ls = ls_resp[0].get("longShortRatio")
+                # some exchanges provide 'fapiPublicGetGlobalLongShortAccountRatio' under ccxt
+                method = getattr(exchange, "fapiPublicGetGlobalLongShortAccountRatio", None)
+                if callable(method):
+                    ls_resp = await method({"symbol": raw_symbol, "period": tf})
+                    if ls_resp:
+                        global_ls = float(ls_resp[0].get("longShortRatio"))
+                else:
+                    # fallback to HTTP via exchange.fetch() or aiohttp as you had before
+                    ...
             except Exception:
                 global_ls = None
 

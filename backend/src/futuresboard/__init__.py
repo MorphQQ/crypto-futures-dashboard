@@ -3,18 +3,9 @@
 from __future__ import annotations
 import pathlib
 
-# --- EARLY MONKEY PATCH (before other imports) ---
-try:
-    import eventlet  # type: ignore
-    eventlet.monkey_patch(thread=True, time=True, select=True)
-    _ASYNC_MODE = "eventlet"
-except Exception:
-    try:
-        import gevent  # type: ignore
-        gevent.monkey.patch_all()
-        _ASYNC_MODE = "gevent"
-    except Exception:
-        _ASYNC_MODE = "threading"
+# Package init: do not monkey-patch eventlet/gevent.
+# Prefer asyncio as canonical async runtime for this app.
+_ASYNC_MODE = "asyncio"
 
 PACKAGE_ROOT = pathlib.Path(__file__).resolve().parent
 

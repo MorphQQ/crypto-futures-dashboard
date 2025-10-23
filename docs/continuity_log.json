@@ -349,5 +349,120 @@
                        "version.py":  "A28548B",
                        "__init__.py":  "FE86BA5"
                    }
+    },
+    {
+        "timestamp":  "2025-10-22 22:56:26",
+        "phase":  "P3.6 - UTF8 Logging + QuantSummary Stable",
+        "backend":  "unhealthy",
+        "hashes":  {
+                       "metrics.py":  "34D5E49",
+                       "blueprint.py":  "2E30F01",
+                       "utils.py":  "B95F2D8",
+                       "quant_engine.py":  "8B76A80",
+                       "__init__.py":  "7F2588D",
+                       "binance_ws_client_legacy.py":  "04FCF76",
+                       "wsgi.py":  "AFEA7F6",
+                       "App.jsx":  "FE87D8B",
+                       "app.py":  "195D772",
+                       "db.py":  "B67C998",
+                       "cli.py":  "4ABCA81",
+                       "scraper.py":  "9F8DDEF",
+                       "config.py":  "035681A",
+                       "version.py":  "A28548B",
+                       "ws_manager.py":  "A2DFFE5"
+                   }
+    },
+    {
+        "timestamp":  "2025-10-23 11:15:22",
+        "phase":  "P3.7 - Self-Healing Continuity Test",
+        "backend":  "healthy",
+        "hashes":  {
+                       "metrics.py":  "34D5E49",
+                       "blueprint.py":  "2E30F01",
+                       "utils.py":  "B95F2D8",
+                       "quant_engine.py":  "8B76A80",
+                       "__init__.py":  "7F2588D",
+                       "binance_ws_client_legacy.py":  "04FCF76",
+                       "wsgi.py":  "AFEA7F6",
+                       "App.jsx":  "FE87D8B",
+                       "app.py":  "121E60C",
+                       "db.py":  "C7EBE60",
+                       "cli.py":  "4ABCA81",
+                       "scraper.py":  "9F8DDEF",
+                       "config.py":  "035681A",
+                       "version.py":  "A28548B",
+                       "ws_manager.py":  "A2DFFE5"
+                   }
+    },
+    {
+        "timestamp":  "2025-10-23 11:15:52",
+        "phase":  "P3.7 - Verified Self-Healing",
+        "backend":  "healthy",
+        "hashes":  {
+                       "metrics.py":  "34D5E49",
+                       "blueprint.py":  "2E30F01",
+                       "utils.py":  "B95F2D8",
+                       "quant_engine.py":  "8B76A80",
+                       "__init__.py":  "7F2588D",
+                       "binance_ws_client_legacy.py":  "04FCF76",
+                       "wsgi.py":  "AFEA7F6",
+                       "App.jsx":  "FE87D8B",
+                       "app.py":  "121E60C",
+                       "db.py":  "C7EBE60",
+                       "cli.py":  "4ABCA81",
+                       "scraper.py":  "9F8DDEF",
+                       "config.py":  "035681A",
+                       "version.py":  "A28548B",
+                       "ws_manager.py":  "A2DFFE5"
+                   }
+    },
+    {
+        "timestamp":  "2025-10-23 22:13:39",
+        "phase":  "P3.6 - Quant 5s Migration",
+        "backend":  "unhealthy",
+        "hashes":  {
+                       "metrics.py":  "34D5E49",
+                       "app - Copy.py":  "3B1687A",
+                       "rest_collector.py":  "FFA3411",
+                       "utils.py":  "B95F2D8",
+                       "quant_engine.py":  "19BA36E",
+                       "__init__.py":  "7F2588D",
+                       "run_migrations.py":  "75212E5",
+                       "blueprint.py":  "2E30F01",
+                       "binance_ws_client_legacy.py":  "04FCF76",
+                       "wsgi.py":  "AFEA7F6",
+                       "App.jsx":  "FE87D8B",
+                       "app.py":  "11711FC",
+                       "db.py":  "9138C17",
+                       "cli.py":  "4ABCA81",
+                       "scraper.py":  "9F8DDEF",
+                       "config.py":  "A5E663F",
+                       "version.py":  "A28548B",
+                       "ws_manager.py":  "6C7B975"
+                   }
+    },
+    {
+        "timestamp":  "2025-10-23 23:02:37",
+        "phase":  "P3.8 - Confluence Layer",
+        "backend":  "unhealthy",
+        "hashes":  {
+                       "metrics.py":  "34D5E49",
+                       "rest_collector.py":  "FFA3411",
+                       "utils.py":  "B95F2D8",
+                       "quant_engine.py":  "56E3FDF",
+                       "__init__.py":  "7F2588D",
+                       "run_migrations.py":  "75212E5",
+                       "blueprint.py":  "2E30F01",
+                       "binance_ws_client_legacy.py":  "04FCF76",
+                       "wsgi.py":  "AFEA7F6",
+                       "App.jsx":  "FE87D8B",
+                       "app.py":  "118F339",
+                       "db.py":  "DDCA505",
+                       "cli.py":  "4ABCA81",
+                       "scraper.py":  "9F8DDEF",
+                       "config.py":  "A5E663F",
+                       "version.py":  "A28548B",
+                       "ws_manager.py":  "6C7B975"
+                   }
     }
 ]

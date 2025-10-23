@@ -1,508 +1,862 @@
-# Fixed: backend/src/futuresboard/db.py
-# Changes:
-# - Implemented GPT Patch B: Bulk insert for main table; executemany for TF mirror.
-# - Added symbol filter to get_latest_metrics.
-# - Removed duplicate imports (sqlite3 twice).
-# - Ensured PRAGMA validation (fetchone check).
-# - Fixed RSI: Use smoothed version consistently.
-# - Added fallback for non-finite in bulk.
-
 # backend/src/futuresboard/db.py
 from __future__ import annotations
-
 import os
-import sqlite3
-import pathlib
-import random
-import traceback
-from datetime import datetime, timedelta, timezone
-from typing import List, Any, Dict, Union
-
-from dotenv import load_dotenv
-load_dotenv()
-
+import asyncio
 import logging
-import numpy as np
-from typing import List, Any
-
-from sqlalchemy import Column, Integer, String, DateTime, Float, create_engine, UniqueConstraint
-from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.exc import IntegrityError
+import math
+from typing import List, Optional, Any, Dict, Sequence
+import asyncpg
+import json
+from datetime import datetime, timedelta
+from dateutil import parser as dateutil_parser
+from .quant_engine import safe_float
 
 logger = logging.getLogger("futuresboard.db")
 logger.setLevel(logging.INFO)
 
-REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
-DB_PATH = os.getenv("DB_PATH", str(REPO_ROOT / "backend" / "src" / "futuresboard" / "futures.db"))
+DATABASE_URL = os.getenv("DATABASE_URL", os.getenv("DB_DSN", "postgresql://postgres:postgres@localhost:5432/futures"))
+POOL_MIN_SIZE = int(os.getenv("DB_POOL_MIN", "1"))
+POOL_MAX_SIZE = int(os.getenv("DB_POOL_MAX", "10"))
 
-# SQLAlchemy engine with check_same_thread=False for threads + WAL isolation
-engine = create_engine(
-    f"sqlite:///{DB_PATH}", 
-    echo=False, 
-    connect_args={"check_same_thread": False}
-)
-SessionLocal = scoped_session(sessionmaker(bind=engine, autocommit=False, autoflush=False))
-Session = SessionLocal
+_pool: Optional[asyncpg.pool.Pool] = None
+_init_lock = asyncio.Lock()
 
-Base = declarative_base()
+# Columns order used by save_metrics_v3_async (must match INSERT order)
+COLS = [
+    "symbol",
+    "timeframe",
+    "price",
+    "price_change_24h_pct",
+    "volume_24h",
+    "volume_change_24h_pct",
+    "market_cap",
+    "oi_usd",
+    "oi_abs_usd",
+    "oi_change_24h_pct",
+    "oi_change_5m_pct",
+    "oi_change_15m_pct",
+    "oi_change_30m_pct",
+    "oi_change_1h_pct",
+    "oi_delta_pct",
+    "price_change_5m_pct",
+    "price_change_15m_pct",
+    "price_change_30m_pct",
+    "price_change_1h_pct",
+    "global_ls_5m",
+    "global_ls_15m",
+    "global_ls_30m",
+    "global_ls_1h",
+    "long_account_pct",
+    "short_account_pct",
+    "top_ls",
+    "top_ls_accounts",
+    "top_ls_positions",
+    "top_ls_delta_pct",
+    "ls_delta_pct",
+    "cvd",
+    "z_ls_val",
+    "z_score",
+    "z_top_ls_acc",
+    "z_top_ls_pos",
+    "imbalance",
+    "funding",
+    "rsi",
+    "vol_usd",
+    "weighted_oi",
+    "vpi",
+    "zsc",
+    "lsm",
+    "updated_at",
+    "raw_json"
+]
 
-class Metric(Base):
-    __tablename__ = "metrics"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    symbol = Column(String, nullable=False)
-    timeframe = Column(String(10), default="5m", nullable=False)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    price = Column(Float)
-    price_change_24h_pct = Column(Float)
-    volume_24h = Column(Float)
-    volume_change_24h_pct = Column(Float)
-    market_cap = Column(Float)
-    oi_usd = Column(Float)
-    oi_abs_usd = Column(Float)
-    oi_change_24h_pct = Column(Float)
-    oi_change_5m_pct = Column(Float)
-    oi_change_15m_pct = Column(Float)
-    oi_change_30m_pct = Column(Float)
-    oi_change_1h_pct = Column(Float)
-    oi_delta_pct = Column(Float)
-    price_change_5m_pct = Column(Float)
-    price_change_15m_pct = Column(Float)
-    price_change_30m_pct = Column(Float)
-    price_change_1h_pct = Column(Float)
-    global_ls_5m = Column(Float)
-    global_ls_15m = Column(Float)
-    global_ls_30m = Column(Float)
-    global_ls_1h = Column(Float)
-    long_account_pct = Column(Float)
-    short_account_pct = Column(Float)
-    top_ls = Column(Float)
-    top_ls_accounts = Column(Float)
-    top_ls_positions = Column(Float)
-    top_ls_delta_pct = Column(Float)
-    ls_delta_pct = Column(Float)
-    cvd = Column(Float)
-    z_ls = Column(Float)
-    z_score = Column(Float)
-    z_top_ls_accounts = Column(Float)   # NEW
-    z_top_ls_positions = Column(Float)  # NEW
-    imbalance = Column(Float)
-    funding = Column(Float)
-    rsi = Column(Float)
-    vol_usd = Column(Float, default=0.0)
-    weighted_oi_usd = Column(Float)     # NEW
-    vpi = Column(Float)                 # NEW
-    zsc = Column(Float)                 # NEW: Z-Strength Composite
-    lsm = Column(Float)                 # NEW: L/S momentum (smoothed Δ)
-    __table_args__ = (UniqueConstraint("symbol", "timeframe", "timestamp", name="unique_sym_tf_ts"),)
+INSERT_SQL = f"""
+INSERT INTO metrics ({','.join(COLS)})
+VALUES ({','.join(f'${i+1}' for i in range(len(COLS)))})
+"""
 
-# --- helper functions and init ---
-def get_db_conn():
-    conn = sqlite3.connect(DB_PATH, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
-    return conn
+# Initialize DB pool and tables
+async def init_db_async():
+    global _pool
+    async with _init_lock:
+        if _pool:
+            return
+        logger.info("[DB] connecting to database")
+        _pool = await asyncpg.create_pool(dsn=DATABASE_URL, min_size=POOL_MIN_SIZE, max_size=POOL_MAX_SIZE)
+        # create tables if not present and helper indexes
+        async with _pool.acquire() as conn:
+            # metrics + index
+            await conn.execute("""
+            CREATE TABLE IF NOT EXISTS metrics (
+                id BIGSERIAL PRIMARY KEY,
+                symbol TEXT NOT NULL,
+                timeframe TEXT NOT NULL,
+                price DOUBLE PRECISION,
+                price_change_24h_pct DOUBLE PRECISION,
+                volume_24h DOUBLE PRECISION,
+                volume_change_24h_pct DOUBLE PRECISION,
+                market_cap DOUBLE PRECISION,
+                oi_usd DOUBLE PRECISION,
+                oi_abs_usd DOUBLE PRECISION,
+                oi_change_24h_pct DOUBLE PRECISION,
+                oi_change_5m_pct DOUBLE PRECISION,
+                oi_change_15m_pct DOUBLE PRECISION,
+                oi_change_30m_pct DOUBLE PRECISION,
+                oi_change_1h_pct DOUBLE PRECISION,
+                oi_delta_pct DOUBLE PRECISION,
+                price_change_5m_pct DOUBLE PRECISION,
+                price_change_15m_pct DOUBLE PRECISION,
+                price_change_30m_pct DOUBLE PRECISION,
+                price_change_1h_pct DOUBLE PRECISION,
+                global_ls_5m DOUBLE PRECISION,
+                global_ls_15m DOUBLE PRECISION,
+                global_ls_30m DOUBLE PRECISION,
+                global_ls_1h DOUBLE PRECISION,
+                long_account_pct DOUBLE PRECISION,
+                short_account_pct DOUBLE PRECISION,
+                top_ls DOUBLE PRECISION,
+                top_ls_accounts DOUBLE PRECISION,
+                top_ls_positions DOUBLE PRECISION,
+                top_ls_delta_pct DOUBLE PRECISION,
+                ls_delta_pct DOUBLE PRECISION,
+                cvd DOUBLE PRECISION,
+                z_ls_val DOUBLE PRECISION,
+                z_score DOUBLE PRECISION,
+                z_top_ls_acc DOUBLE PRECISION,
+                z_top_ls_pos DOUBLE PRECISION,
+                imbalance DOUBLE PRECISION,
+                funding DOUBLE PRECISION,
+                rsi DOUBLE PRECISION,
+                vol_usd DOUBLE PRECISION,
+                weighted_oi DOUBLE PRECISION,
+                vpi DOUBLE PRECISION,
+                zsc DOUBLE PRECISION,
+                lsm DOUBLE PRECISION,
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+                raw_json JSONB DEFAULT '{}'::jsonb
+            );
+            CREATE INDEX IF NOT EXISTS metrics_symbol_tf_idx ON metrics(symbol, timeframe, updated_at DESC);
+            """)
+            # market_rest_metrics table (raw REST samples)
+            await conn.execute("""
+            CREATE TABLE IF NOT EXISTS market_rest_metrics (
+                id BIGSERIAL PRIMARY KEY,
+                ts TIMESTAMP WITH TIME ZONE,
+                symbol TEXT,
+                open DOUBLE PRECISION,
+                high DOUBLE PRECISION,
+                low DOUBLE PRECISION,
+                close DOUBLE PRECISION,
+                volume DOUBLE PRECISION,
+                trades INTEGER,
+                oi DOUBLE PRECISION,
+                funding_rate DOUBLE PRECISION,
+                mark_price DOUBLE PRECISION,
+                global_long_short_ratio DOUBLE PRECISION,
+                top_trader_long_short_ratio DOUBLE PRECISION,
+                top_trader_account_ratio DOUBLE PRECISION,
+                open_interest_hist_usd DOUBLE PRECISION,
+                metadata JSONB DEFAULT '{}'::jsonb
+            );
+            CREATE INDEX IF NOT EXISTS market_rest_metrics_symbol_ts_idx ON market_rest_metrics(symbol, ts DESC);
+            """)
+            # quant_summary + unique index for ON CONFLICT
+            await conn.execute("""
+            CREATE TABLE IF NOT EXISTS quant_summary (
+                id BIGSERIAL PRIMARY KEY,
+                symbol TEXT,
+                timeframe TEXT,
+                oi_z DOUBLE PRECISION,
+                ls_delta_pct DOUBLE PRECISION,
+                imbalance DOUBLE PRECISION,
+                funding DOUBLE PRECISION,
+                confluence_score DOUBLE PRECISION,
+                bias TEXT,
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+            );
+            """)
+            # unique index ensures INSERT ... ON CONFLICT(symbol, timeframe) works
+            await conn.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS quant_summary_symbol_tf_idx
+            ON quant_summary(symbol, timeframe, updated_at);
+            """)
+            # quant_features: stores all live computed quant metrics (for replay)
+            await conn.execute("""
+            CREATE TABLE IF NOT EXISTS quant_features (
+                id BIGSERIAL PRIMARY KEY,
+                symbol TEXT NOT NULL,
+                timeframe TEXT DEFAULT '1m',
+                ts TIMESTAMP WITH TIME ZONE DEFAULT now(),
+                price DOUBLE PRECISION,
+                oi_usd DOUBLE PRECISION,
+                vol_usd DOUBLE PRECISION,
+                global_ls_5m DOUBLE PRECISION,
+                top_ls_accounts DOUBLE PRECISION,
+                top_ls_positions DOUBLE PRECISION,
+                funding DOUBLE PRECISION,
+                atr_5s DOUBLE PRECISION,
+                obi DOUBLE PRECISION,
+                taker_buy_ratio DOUBLE PRECISION,
+                taker_sell_ratio DOUBLE PRECISION,
+                vpi DOUBLE PRECISION,
+                z_oi DOUBLE PRECISION,
+                z_top_ls_acc DOUBLE PRECISION,
+                z_obi DOUBLE PRECISION,
+                z_funding DOUBLE PRECISION,
+                zsc DOUBLE PRECISION,
+                oi_change_5s_pct DOUBLE PRECISION,
+                oi_change_10s_pct DOUBLE PRECISION,
+                price_change_5s_pct DOUBLE PRECISION,
+                price_change_10s_pct DOUBLE PRECISION,
+                confidence DOUBLE PRECISION,
+                families JSONB DEFAULT '{}'::jsonb,
+                raw_json JSONB DEFAULT '{}'::jsonb
+            );
+            CREATE INDEX IF NOT EXISTS quant_features_symbol_ts_idx
+            ON quant_features(symbol, ts DESC);
+            """)
+            # quant_features_5s: high-frequency (5s) derived features
+            await conn.execute("""
+            CREATE TABLE IF NOT EXISTS quant_features_5s (
+                id BIGSERIAL PRIMARY KEY,
+                symbol TEXT NOT NULL,
+                timeframe TEXT DEFAULT '5s',
+                ts TIMESTAMP WITH TIME ZONE DEFAULT now(),
+                price DOUBLE PRECISION,
+                oi_usd DOUBLE PRECISION,
+                vol_usd DOUBLE PRECISION,
+                oi_change_5s_pct DOUBLE PRECISION,
+                oi_change_10s_pct DOUBLE PRECISION,
+                price_change_5s_pct DOUBLE PRECISION,
+                price_change_10s_pct DOUBLE PRECISION,
+                atr_5s DOUBLE PRECISION,
+                obi DOUBLE PRECISION,
+                taker_buy_ratio DOUBLE PRECISION,
+                taker_sell_ratio DOUBLE PRECISION,
+                vpi DOUBLE PRECISION,
+                z_oi DOUBLE PRECISION,
+                z_top_ls_acc DOUBLE PRECISION,
+                z_obi DOUBLE PRECISION,
+                z_funding DOUBLE PRECISION,
+                zsc DOUBLE PRECISION,
+                confidence DOUBLE PRECISION,
+                families JSONB DEFAULT '{}'::jsonb,
+                raw_json JSONB DEFAULT '{}'::jsonb
+            );
+            CREATE INDEX IF NOT EXISTS quant_features_5s_symbol_ts_idx
+            ON quant_features_5s(symbol, ts DESC);
+            """)
+            # quant_diagnostics: rolling correlations & validation
+            await conn.execute("""
+            CREATE TABLE IF NOT EXISTS quant_diagnostics (
+                id BIGSERIAL PRIMARY KEY,
+                symbol TEXT NOT NULL,
+                ts TIMESTAMP WITH TIME ZONE DEFAULT now(),
+                window_s INT DEFAULT 60,
+                corr_price_oi DOUBLE PRECISION,
+                corr_price_ls DOUBLE PRECISION,
+                corr_oi_ls DOUBLE PRECISION,
+                volatility_5s DOUBLE PRECISION,
+                volatility_zscore DOUBLE PRECISION,
+                confluence_density DOUBLE PRECISION,
+                raw_json JSONB DEFAULT '{}'::jsonb
+            );
+            CREATE INDEX IF NOT EXISTS quant_diagnostics_symbol_ts_idx
+            ON quant_diagnostics(symbol, ts DESC);
+            """)
+            # quant_signals: summarized family-level signals
+            await conn.execute("""
+            CREATE TABLE IF NOT EXISTS quant_signals (
+                id BIGSERIAL PRIMARY KEY,
+                symbol TEXT NOT NULL,
+                ts TIMESTAMP WITH TIME ZONE DEFAULT now(),
+                family TEXT,
+                score DOUBLE PRECISION,
+                confidence DOUBLE PRECISION,
+                diagnostics_ref BIGINT,
+                raw_json JSONB DEFAULT '{}'::jsonb
+            );
+            CREATE INDEX IF NOT EXISTS quant_signals_symbol_ts_idx
+            ON quant_signals(symbol, ts DESC);
+            """)
+            # quant_confluence: aggregated regime & confidence score
+            await conn.execute("""
+            CREATE TABLE IF NOT EXISTS quant_confluence (
+                id BIGSERIAL PRIMARY KEY,
+                symbol TEXT NOT NULL,
+                ts TIMESTAMP WITH TIME ZONE DEFAULT now(),
+                confluence_score DOUBLE PRECISION,
+                bull_strength DOUBLE PRECISION,
+                bear_strength DOUBLE PRECISION,
+                volatility DOUBLE PRECISION,
+                family_count INT,
+                diagnostic_ref BIGINT,
+                raw_json JSONB DEFAULT '{}'::jsonb
+            );
+            CREATE INDEX IF NOT EXISTS quant_confluence_symbol_ts_idx
+            ON quant_confluence(symbol, ts DESC);
+            """)
+        logger.info("[DB] initialized and ready")
 
-def init_app(app=None):
-    """
-    Initialize database: enable WAL, create per-timeframe tables,
-    ensure indexes and PRAGMA tuning for high-frequency quant workloads.
-    """
-    p = pathlib.Path(DB_PATH)
-    p.parent.mkdir(parents=True, exist_ok=True)
 
-    # create tables via SQLAlchemy
-    Base.metadata.create_all(bind=engine)
+async def close_db_async():
+    global _pool
+    if _pool:
+        await _pool.close()
+        _pool = None
+        logger.info("[DB] pool closed")
 
-    conn = get_db_conn()
-    cur = conn.cursor()
 
-    # === Performance PRAGMAs (with validation) ===
-    # === Performance PRAGMAs (with validation) ===
-    pragmas = [
-        ("journal_mode", "WAL"),
-        ("synchronous", "NORMAL"),
-        ("temp_store", "MEMORY"),
-        ("mmap_size", "268435456"),  # 256MB memory map
-        ("cache_size", "-200000"),   # ~200MB cache
-    ]
-    for key, expected_val in pragmas:
-        try:
-            val_str = str(expected_val)  # Cast int early
-            cur.execute(f"PRAGMA {key} = {val_str};")
-            result = cur.fetchone()
-            actual = str(result[0]) if result else "None"
-            if actual and actual.lower() != val_str.lower():
-                logger.warning(f"PRAGMA {key} set to {actual}, expected {expected_val}")
-            else:
-                logger.debug(f"PRAGMA {key} OK: {actual or 'None (default)'}")
-        except Exception as e:
-            logger.warning(f"PRAGMA {key} failed: {e}")
-
-    conn.commit()
-
-    # === Create main table ===
-    create_metrics_table()
-
-    # === Create per-timeframe tables (1m, 5m, 15m, 30m, 1h) ===
-    tfs = ["1m", "5m", "15m", "30m", "1h"]
-    for tf in tfs:
-        tf_table = f"metrics_{tf}"
-        try:
-            cur.execute(f"CREATE TABLE IF NOT EXISTS {tf_table} AS SELECT * FROM metrics WHERE 0;")
-            cur.execute(f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{tf_table}_sym_tf_ts ON {tf_table}(symbol, timeframe, timestamp);")
-        except Exception as e:
-            logger.warning(f"Failed to create table {tf_table}: {e}")
-
-    # === Add indexes for faster queries ===
-    index_cmds = [
-        "CREATE INDEX IF NOT EXISTS idx_metrics_symbol_timeframe_ts ON metrics(symbol, timeframe, timestamp DESC);",
-        "CREATE INDEX IF NOT EXISTS idx_metrics_ts ON metrics(timestamp DESC);",
-        "CREATE INDEX IF NOT EXISTS idx_metrics_tf_ts ON metrics(timeframe, timestamp DESC);"
-    ]
-    for cmd in index_cmds:
-        try:
-            cur.execute(cmd)
-        except Exception as e:
-            logger.warning(f"Index creation failed: {e}")
-
-    conn.commit()
-    cur.close()
-    conn.close()
-
-    logger.info(f"[DB] Initialized at {DB_PATH} with per-timeframe tables.")
-        # Mark DB ready for continuity loops
-    ready_flag = REPO_ROOT / "backend" / "logs" / "db_ready.flag"
+# Utility to coerce numbers
+def _safe_num(x):
     try:
-        ready_flag.parent.mkdir(parents=True, exist_ok=True)
-        ready_flag.write_text(datetime.utcnow().isoformat(), encoding="utf-8")
-        logger.info(f"[DB] Ready flag written at {ready_flag}")
-    except Exception as e:
-        logger.warning(f"[DB] Ready flag write failed: {e}")
-
-    return True
-
-
-def create_metrics_table():
-    """Idempotent SQL create + alter to ensure compatibility with older DBs"""
-    conn = get_db_conn()
-    cur = conn.cursor()
-
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS metrics (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            symbol TEXT NOT NULL,
-            timeframe TEXT NOT NULL DEFAULT '5m',
-            price REAL,
-            price_change_24h_pct REAL,
-            volume_24h REAL,
-            volume_change_24h_pct REAL,
-            market_cap REAL,
-            oi_usd REAL,
-            oi_abs_usd REAL,
-            oi_change_24h_pct REAL,
-            oi_change_5m_pct REAL,
-            oi_change_15m_pct REAL,
-            oi_change_30m_pct REAL,
-            oi_change_1h_pct REAL,
-            oi_delta_pct REAL,
-            price_change_5m_pct REAL,
-            price_change_15m_pct REAL,
-            price_change_30m_pct REAL,
-            price_change_1h_pct REAL,
-            global_ls_5m REAL,
-            global_ls_15m REAL,
-            global_ls_30m REAL,
-            global_ls_1h REAL,
-            long_account_pct REAL,
-            short_account_pct REAL,
-            top_ls REAL,
-            top_ls_accounts REAL,
-            top_ls_positions REAL,
-            top_ls_delta_pct REAL,
-            ls_delta_pct REAL,
-            cvd REAL,
-            z_ls REAL,
-            z_score REAL,
-            z_top_ls_accounts REAL,
-            z_top_ls_positions REAL,
-            imbalance REAL,
-            funding REAL,
-            rsi REAL,
-            vol_usd REAL DEFAULT 0.0,
-            weighted_oi_usd REAL,
-            vpi REAL,
-            zsc REAL,
-            lsm REAL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(symbol, timeframe, timestamp) ON CONFLICT REPLACE
-        )
-        """
-    )
-    conn.commit()
-
-    # Ensure new columns exist for added metrics (safe to rerun)
-    cols = [
-        ("top_ls_delta_pct", "REAL"),
-        ("weighted_oi_usd", "REAL"),
-        ("vpi", "REAL"),
-        ("z_top_ls_accounts", "REAL"),
-        ("z_top_ls_positions", "REAL"),
-        ("zsc", "REAL"),
-        ("lsm", "REAL"),
-    ]
-    for col, typ in cols:
-        try:
-            cur.execute(f"ALTER TABLE metrics ADD COLUMN {col} {typ};")
-        except sqlite3.OperationalError:
-            pass
-
-    conn.commit()
-    cur.close()
-    conn.close()
-
-
-# safe float parser
-def safe_float(m, key, default=None):
-    val = m.get(key, default)
-    if val is None or val == "N/A":
-        return None
-    try:
-        s = str(val).replace("$", "").replace(",", "").replace("%", "")
-        return float(s)
+        if x is None:
+            return None
+        if isinstance(x, (int, float)):
+            return float(x)
+        return float(str(x).replace(",", "").replace("$", ""))
     except Exception:
         return None
 
-def calc_rsi(closes, period=14):
-    """
-    Compute RSI for a sequence of closing prices.
-    Uses standard Wilder's smoothing method.
-    """
-    arr = np.asarray(closes, dtype=float)
-    if arr.size < period + 1:
-        return 50.0
-    deltas = np.diff(arr)
-    gains = np.where(deltas > 0, deltas, 0.0)
-    losses = np.where(deltas < 0, -deltas, 0.0)
 
-    avg_gain = np.mean(gains[:period])
-    avg_loss = np.mean(losses[:period])
-
-    for i in range(period, len(deltas)):
-        avg_gain = (avg_gain * (period - 1) + gains[i]) / period
-        avg_loss = (avg_loss * (period - 1) + losses[i]) / period
-
-    if avg_loss == 0:
-        return 100.0 if avg_gain > 0 else 50.0
-
-    rs = avg_gain / avg_loss
-    rsi = 100 - (100 / (1 + rs))
-    return float(np.round(rsi, 2))
+def _safe_json(obj):
+    try:
+        return json.dumps(obj, default=str)
+    except Exception:
+        return "{}"
 
 
-def save_metrics_v3(metrics: List[Dict[str, Union[float, str, None]]], timeframe: str = "5m") -> int:
-    """
-    Quant-grade version of save_metrics():
-    Computes RSI, Weighted OI, VPI, LS and Top-Trader deltas + Z-scores.
-    Writes to ORM metrics and per-timeframe tables.
-    """
+# Save metrics (list of dicts) batching with executemany
+async def save_metrics_v3_async(metrics: List[Dict[str, Any]], timeframe: str = "1m") -> int:
+    global _pool
+    if not _pool:
+        await init_db_async()
     if not metrics:
         return 0
 
-    session = Session()
-    saved_count = 0
-    try:
-        # Build mappings for bulk insert
-        mappings = []
-        recent_cache = {}  # Cache prev for deltas (per symbol/tf)
-
-        for m in metrics:
-            if "error" in m:
-                continue
-
-            # Fetch prev for deltas (cached)
-            symbol = m.get("symbol")
-            key = (symbol, timeframe)
-            if key not in recent_cache:
-                recent_cache[key] = (
-                    session.query(Metric)
-                    .filter(Metric.symbol == symbol, Metric.timeframe == timeframe)
-                    .order_by(Metric.timestamp.desc())
-                    .limit(50)
-                    .all()
-                )
-            recent = recent_cache[key]
-            prev = recent[0] if recent else None
-            prev_oi = prev.oi_abs_usd if prev else 0.0
-            prev_ls = getattr(prev, f"global_ls_{timeframe}", 1.0) if prev else 1.0
-            prev_top_acc = getattr(prev, "top_ls_accounts", 1.0) if prev else 1.0
-            prev_top_pos = getattr(prev, "top_ls_positions", 1.0) if prev else 1.0
-
-            d = {
-                "symbol": symbol,
-                "timeframe": timeframe,
-                "timestamp": datetime.now(timezone.utc) + timedelta(microseconds=random.randint(0, 999999)),
-                "price": safe_float(m, "Price"),
-                "vol_usd": safe_float(m, "vol_usd") or 0.0,
-                "oi_abs_usd": safe_float(m, "oi_abs_usd") or 0.0,
-                # OI delta
-                "oi_delta_pct": ((safe_float(m, "oi_abs_usd") - prev_oi) / prev_oi * 100) if prev_oi > 0 else 0.0,
-                # Global L/S
-                f"global_ls_{timeframe}": safe_float(m, f"Global_LS_{timeframe}"),
-                "ls_delta_pct": (((safe_float(m, f"Global_LS_{timeframe}")) - prev_ls) / prev_ls * 100) if prev_ls else 0.0,
-                # Top trader
-                "top_ls_accounts": safe_float(m, "Top_LS_Accounts"),
-                "top_ls_positions": safe_float(m, "Top_LS_Positions"),
-                "top_ls": safe_float(m, "Top_LS"),
-                "top_ls_delta_pct": ((safe_float(m, "Top_LS_Accounts") - prev_top_acc) / prev_top_acc * 100) if prev_top_acc else 0.0,
-                # RSI from recent prices
-                "rsi": calc_rsi([r.price for r in recent if r.price] + [safe_float(m, "Price")]),
-                # Weighted OI (local) — guard divide-by-zero, coerce vol_usd to 0 if None
-                "_recent_vol_sum": sum(float(r.vol_usd or 0.0) for r in recent) if recent else 0.0,
-                "weighted_oi_usd": (
-                    (safe_float(m, "oi_abs_usd") or 0.0) *
-                    ((safe_float(m, "vol_usd") or 0.0) / (sum(float(r.vol_usd or 0.0) for r in recent) or 1.0) + (safe_float(m, "vol_usd") or 0.0))
-                ) if recent else (safe_float(m, "oi_abs_usd") or 0.0),
-                "vpi": safe_float(m, "vol_usd") * (safe_float(m, "oi_delta_pct") or 0.0) / 100.0,
-                # z-scores: filter None and coerce to float
-                "z_ls": float(np.mean([float(getattr(r, f"global_ls_{timeframe}") or 0.0) for r in recent])) if recent else 0.0,
-                "z_top_ls_accounts": float(np.mean([float(r.top_ls_accounts or 0.0) for r in recent])) if recent else 0.0,
-                "z_top_ls_positions": float(np.mean([float(r.top_ls_positions or 0.0) for r in recent])) if recent else 0.0,
-                # ZSC
-                "zsc": 0.5 * (safe_float(m, "z_ls") or 0.0) + 0.25 * (safe_float(m, "z_top_ls_accounts") or 0.0) + 0.25 * (safe_float(m, "z_top_ls_positions") or 0.0),
-                # LSM (simplified)
-                "lsm": 0.0,  # Full smoothed in loop if data
-            }
-            # Guards
-            for k in ["oi_abs_usd", "vol_usd", "oi_delta_pct", "ls_delta_pct", "top_ls_delta_pct", "vpi", "weighted_oi_usd", "rsi", "zsc", "lsm"]:
-                val = d.get(k, None)
-                try:
-                    if val is None or not np.isfinite(float(val)):
-                        d[k] = 0.0
-                    else:
-                        d[k] = float(val)
-                except Exception:
-                    d[k] = 0.0
-
-            mappings.append(d)
-            saved_count += 1
-
-        # Bulk insert main table
+    values: List[Sequence[Any]] = []
+    saved = 0
+    for m in metrics:
         try:
-            session.bulk_insert_mappings(Metric, mappings)
-            session.commit()
-        except Exception as bulk_err:
-            logger.warning(f"Bulk insert failed: {bulk_err}; falling to row-by-row")
-            session.rollback()
-            for d in mappings:
-                metric = Metric(**d)
-                session.merge(metric)
-            session.commit()
+            if not isinstance(m, dict):
+                logger.debug("[save_metrics_v3_async] skip non-dict")
+                continue
+            symbol = (m.get("symbol") or m.get("sym") or "").strip()
+            if not symbol:
+                logger.debug("[save_metrics_v3_async] skip missing symbol")
+                continue
+            def g(k, fallback=None):
+                # accept upper/lower variants
+                return _safe_num(m.get(k, fallback))
+            updated_at = datetime.utcnow()
+            row = [
+                symbol,
+                timeframe,
+                g("Price") or g("price") or None,
+                g("price_change_24h_pct"),
+                g("volume_24h"),
+                g("volume_change_24h_pct"),
+                g("market_cap"),
+                g("oi_usd"),
+                g("oi_abs_usd"),
+                g("oi_change_24h_pct"),
+                g("oi_change_5m_pct"),
+                g("oi_change_15m_pct"),
+                g("oi_change_30m_pct"),
+                g("oi_change_1h_pct"),
+                g("oi_delta_pct"),
+                g("price_change_5m_pct"),
+                g("price_change_15m_pct"),
+                g("price_change_30m_pct"),
+                g("price_change_1h_pct"),
+                g("Global_LS_5m") or g("global_ls_5m"),
+                g("Global_LS_15m") or g("global_ls_15m"),
+                g("Global_LS_30m") or g("global_ls_30m"),
+                g("Global_LS_1h") or g("global_ls_1h"),
+                g("long_account_pct"),
+                g("short_account_pct"),
+                g("Top_LS") or g("top_ls"),
+                g("Top_LS_Accounts") or g("top_ls_accounts"),
+                g("Top_LS_Positions") or g("top_ls_positions"),
+                g("top_ls_delta_pct"),
+                g("ls_delta_pct"),
+                g("cvd"),
+                g("z_ls_val"),
+                g("z_score"),
+                g("z_top_ls_acc"),
+                g("z_top_ls_pos"),
+                g("imbalance"),
+                g("funding"),
+                g("rsi"),
+                g("vol_usd") or g("volume"),
+                g("weighted_oi"),
+                g("vpi"),
+                g("zsc"),
+                g("lsm"),
+                updated_at,
+                _safe_json(m)
+            ]
+            # sanitize non-finite floats
+            for idx, v in enumerate(row):
+                if isinstance(v, float) and not math.isfinite(v):
+                    row[idx] = None
+            values.append(row)
+            saved += 1
+        except Exception as e:
+            logger.warning(f"[save_metrics_v3_async] row prepare failed: {e}")
 
-        # Batch mirror to TF table
-        if mappings:
-            tf_table = f"metrics_{timeframe}"
-            conn = get_db_conn()
-            try:
-                cols = [c.name for c in Metric.__table__.columns if c.name != 'id']  # Exclude id
-                placeholders = ",".join("?" for _ in cols)
-                values = [[d.get(c, None) for c in cols] for d in mappings]
-                conn.executemany(f"INSERT OR REPLACE INTO {tf_table} ({','.join(cols)}) VALUES ({placeholders})", values)
-                conn.commit()
-            except Exception as mirror_err:
-                logger.warning(f"TF mirror failed: {mirror_err}")
-            finally:
-                conn.close()
-
-        logger.info(f"[save_metrics_v3] Bulk saved {saved_count} records for {timeframe}")
-        return saved_count
-
-    except Exception as e:
-        session.rollback()
-        traceback.print_exc()
-        logger.error(f"save_metrics_v3 failed: {e}")
+    if not values:
         return 0
-    finally:
-        session.close()
 
+    batch = int(os.getenv("DB_INSERT_BATCH", "200"))
+    async with _pool.acquire() as conn:
+        async with conn.transaction():
+            for i in range(0, len(values), batch):
+                chunk = values[i:i+batch]
+                try:
+                    await conn.executemany(INSERT_SQL, chunk)
+                except Exception as e:
+                    logger.warning(f"[save_metrics_v3_async] batch insert failed ({len(chunk)}): {e}")
+                    for row in chunk:
+                        try:
+                            await conn.execute(INSERT_SQL, *row)
+                        except Exception as e2:
+                            logger.warning(f"[save_metrics_v3_async] single insert failed: {e2}")
+    return saved
 
-def get_latest_metrics(limit: int = 50, tf: str | None = None, symbol: str | None = None) -> list:
+# -------------------------------------------------------------------
+# Save quant-enriched features (from quant_engine)
+# -------------------------------------------------------------------
+async def save_quant_features_async(features: List[Dict[str, Any]]) -> int:
     """
-    Hybrid fetch (ORM first, then raw SQLite fallback). Added symbol filter.
+    Persists computed quant features (from quant_engine.compute_quant_metrics)
+    into quant_features table for replay/backtest.
     """
-    session = Session()
-    try:
-        q = session.query(Metric)
-        if symbol:
-            q = q.filter(Metric.symbol == symbol)
-        if tf:
-            q = q.filter(Metric.timeframe == tf)
-        q = q.order_by(Metric.timestamp.desc())
-        rows = q.limit(limit).all()
-        if rows:
-            logger.info(f"[DB] ORM returned {len(rows)} rows (tf={tf or 'all'}, symbol={symbol or 'all'})")
-            return rows
-    except Exception as e:
-        logger.warning(f"[DB] ORM failed: {e}")
-    finally:
-        session.close()
+    global _pool
+    if not _pool:
+        await init_db_async()
+    if not features:
+        return 0
 
-    # fallback raw sqlite
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-    q = "SELECT * FROM metrics"
+    cols = [
+        "symbol", "timeframe", "ts", "price", "oi_usd", "vol_usd",
+        "global_ls_5m", "top_ls_accounts", "top_ls_positions", "funding",
+        "atr_5s", "obi", "taker_buy_ratio", "taker_sell_ratio", "vpi",
+        "z_oi", "z_top_ls_acc", "z_obi", "z_funding", "zsc",
+        "oi_change_5s_pct", "oi_change_10s_pct",
+        "price_change_5s_pct", "price_change_10s_pct",
+        "confidence", "families", "raw_json"
+    ]
+    placeholders = ", ".join(f"${i+1}" for i in range(len(cols)))
+    sql = f"INSERT INTO quant_features ({', '.join(cols)}) VALUES ({placeholders})"
+    count = 0
+
+    async with _pool.acquire() as conn:
+        async with conn.transaction():
+            for f in features:
+                try:
+                    values = [
+                        f.get("symbol"),
+                        f.get("timeframe", "1m"),
+                        datetime.utcnow(),
+                        f.get("price"),
+                        f.get("oi_usd"),
+                        f.get("vol_usd"),
+                        f.get("global_ls_5m"),
+                        f.get("top_ls_accounts"),
+                        f.get("top_ls_positions"),
+                        f.get("funding"),
+                        f.get("atr_5s"),
+                        f.get("obi"),
+                        f.get("taker_buy_ratio"),
+                        f.get("taker_sell_ratio"),
+                        f.get("vpi"),
+                        f.get("z_oi"),
+                        f.get("z_top_ls_acc"),
+                        f.get("z_obi"),
+                        f.get("z_funding"),
+                        f.get("zsc"),
+                        f.get("oi_change_5s_pct"),
+                        f.get("oi_change_10s_pct"),
+                        f.get("price_change_5s_pct"),
+                        f.get("price_change_10s_pct"),
+                        f.get("confidence"),
+                        json.dumps(f.get("families") or {}),
+                        json.dumps(f)
+                    ]
+                    await conn.execute(sql, *values)
+                    count += 1
+                except Exception as e:
+                    logger.warning(f"[save_quant_features_async] insert failed: {e}")
+    logger.info(f"[DB.save_quant_features_async] saved {count} quant feature rows")
+    return count
+
+async def save_quant_diagnostics_async(rows: list[dict[str, any]]) -> int:
+    """Bulk insert diagnostics snapshots into quant_diagnostics."""
+    if not rows:
+        return 0
+    global _pool
+    if not _pool:
+        await init_db_async()
+
+    cols = [
+        "symbol", "ts", "window_s",
+        "corr_price_oi", "corr_price_ls", "corr_oi_ls",
+        "volatility_5s", "volatility_zscore",
+        "confluence_density", "raw_json"
+    ]
+    placeholders = ", ".join(f"${i+1}" for i in range(len(cols)))
+    sql = f"INSERT INTO quant_diagnostics ({', '.join(cols)}) VALUES ({placeholders})"
+
+    count = 0
+    async with _pool.acquire() as conn:
+        async with conn.transaction():
+            for r in rows:
+                try:
+                    await conn.execute(sql,
+                        r.get("symbol"),
+                        r.get("ts"),
+                        r.get("window_s", 60),
+                        r.get("corr_price_oi"),
+                        r.get("corr_price_ls"),
+                        r.get("corr_oi_ls"),
+                        r.get("volatility_5s"),
+                        r.get("volatility_zscore"),
+                        r.get("confluence_density"),
+                        json.dumps(sanitize_json(r.get("raw_json") or {}), default=str),
+                    )
+                    count += 1
+                except Exception as e:
+                    logger.warning(f"[save_quant_diagnostics_async] failed: {e}")
+    logger.info(f"[DB] saved {count} rows into quant_diagnostics")
+    return count
+
+async def save_quant_signals_async(rows: list[dict[str, any]]) -> int:
+    """Bulk insert family signal scores."""
+    if not rows:
+        return 0
+    global _pool
+    if not _pool:
+        await init_db_async()
+
+    cols = [
+        "symbol", "ts", "family",
+        "score", "confidence",
+        "diagnostics_ref", "raw_json"
+    ]
+    placeholders = ", ".join(f"${i+1}" for i in range(len(cols)))
+    sql = f"INSERT INTO quant_signals ({', '.join(cols)}) VALUES ({placeholders})"
+
+    count = 0
+    async with _pool.acquire() as conn:
+        async with conn.transaction():
+            for r in rows:
+                try:
+                    await conn.execute(sql,
+                        r.get("symbol"),
+                        r.get("ts"),
+                        r.get("family"),
+                        r.get("score"),
+                        r.get("confidence"),
+                        r.get("diagnostics_ref"),
+                        json.dumps(sanitize_json(r.get("raw_json") or {}), default=str),
+                    )
+                    count += 1
+                except Exception as e:
+                    logger.warning(f"[save_quant_signals_async] failed: {e}")
+    logger.info(f"[DB] saved {count} rows into quant_signals")
+    return count
+
+async def save_quant_confluence_async(rows: list[dict[str, any]]) -> int:
+    """Bulk insert confluence snapshots."""
+    if not rows:
+        return 0
+    global _pool
+    if not _pool:
+        await init_db_async()
+
+    sql = """
+    INSERT INTO quant_confluence (
+        symbol, ts, confluence_score, bull_strength,
+        bear_strength, volatility, family_count,
+        diagnostic_ref, raw_json
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+    """
+    count = 0
+    async with _pool.acquire() as conn:
+        async with conn.transaction():
+            for r in rows:
+                try:
+                    await conn.execute(sql,
+                        r.get("symbol"),
+                        r.get("ts"),
+                        r.get("confluence_score"),
+                        r.get("bull_strength"),
+                        r.get("bear_strength"),
+                        r.get("volatility"),
+                        r.get("family_count"),
+                        r.get("diagnostic_ref"),
+                        json.dumps(sanitize_json(r.get("raw_json") or {}), default=str),
+                    )
+                    count += 1
+                except Exception as e:
+                    logger.warning(f"[save_quant_confluence_async] failed: {e}")
+    logger.info(f"[DB] saved {count} rows into quant_confluence")
+    return count
+
+# -------------------------------------------------------------------
+# Generic async batch insert (used by rest_collector)
+# -------------------------------------------------------------------
+async def insert_batch(table: str, rows: list[dict]) -> int:
+    global _pool
+    if not _pool:
+        await init_db_async()
+
+    if not rows:
+        logger.debug(f"[DB.insert_batch] no rows provided for {table}")
+        return 0
+
+    cols = list(rows[0].keys())
+    placeholders = ", ".join(f"${i+1}" for i in range(len(cols)))
+    sql = f"INSERT INTO {table} ({', '.join(cols)}) VALUES ({placeholders})"
+    count = 0
+
+    async with _pool.acquire() as conn:
+        async with conn.transaction():
+            for row in rows:
+                try:
+                    values = []
+                    for v in row.values():
+                        # if dict/list -> JSON
+                        if isinstance(v, (dict, list)):
+                            values.append(json.dumps(v, default=str))
+                        # if string looks like ISO timestamp, try to parse to datetime
+                        elif isinstance(v, str):
+                            parsed = None
+                            try:
+                                parsed = dateutil_parser.isoparse(v)
+                            except Exception:
+                                parsed = None
+                            if parsed:
+                                values.append(parsed)
+                            else:
+                                values.append(v)
+                        else:
+                            values.append(v)
+                    await conn.execute(sql, *values)
+                    count += 1
+                except Exception as e:
+                    logger.warning(f"[DB.insert_batch] insert failed for {table}: {e}")
+    logger.info(f"[DB.insert_batch] inserted {count} rows into {table}")
+    return count
+
+
+# -------------------------------------------------------------------
+# Helpers for app-level merges
+# -------------------------------------------------------------------
+async def get_latest_rest_metric(symbol: str) -> Optional[Dict[str, Any]]:
+    """
+    Return the most recent row from market_rest_metrics for symbol (as dict),
+    or None if missing.
+    """
+    global _pool
+    if not _pool:
+        await init_db_async()
+    q = "SELECT * FROM market_rest_metrics WHERE symbol = $1 ORDER BY ts DESC LIMIT 1"
+    async with _pool.acquire() as conn:
+        row = await conn.fetchrow(q, symbol)
+    if not row:
+        return None
+    return dict(row)
+
+
+# -------------------------------------------------------------------
+# Query helpers for metrics retrieval
+# -------------------------------------------------------------------
+async def get_latest_metrics_async(limit: int = 100, tf: Optional[str] = None, symbol: Optional[str] = None):
+    global _pool
+    if not _pool:
+        await init_db_async()
+    where_clauses = []
     params = []
+    if tf:
+        where_clauses.append("timeframe = $%d" % (len(params) + 1))
+        params.append(tf)
     if symbol:
-        q += " WHERE symbol = ?"
+        where_clauses.append("symbol = $%d" % (len(params) + 1))
         params.append(symbol)
-    if tf:
-        if symbol:
-            q += " AND"
-        else:
-            q += " WHERE"
-        q += " timeframe = ?"
-        params.append(tf)
-    q += " ORDER BY timestamp DESC LIMIT ?"
+    where = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+    q = f"SELECT * FROM metrics {where} ORDER BY updated_at DESC LIMIT $%d" % (len(params) + 1)
     params.append(limit)
-    cur.execute(q, params)
-    rows = cur.fetchall()
-    conn.close()
-    logger.info(f"[DB] RAW fallback returned {len(rows)} rows (tf={tf or 'all'}, symbol={symbol or 'all'})")
-    return rows
+    async with _pool.acquire() as conn:
+        rows = await conn.fetch(q, *params)
+    return [dict(r) for r in rows]
 
 
-def get_metrics_by_symbol(symbol: str, limit: int = 100, tf: str | None = None) -> list:
+async def get_metrics_by_symbol_async(symbol: str, limit: int = 100, tf: Optional[str] = None):
+    global _pool
+    if not _pool:
+        await init_db_async()
+    if tf:
+        q = "SELECT * FROM metrics WHERE symbol = $1 AND timeframe = $2 ORDER BY updated_at DESC LIMIT $3"
+        async with _pool.acquire() as conn:
+            rows = await conn.fetch(q, symbol, tf, limit)
+    else:
+        q = "SELECT * FROM metrics WHERE symbol = $1 ORDER BY updated_at DESC LIMIT $2"
+        async with _pool.acquire() as conn:
+            rows = await conn.fetch(q, symbol, limit)
+    return [dict(r) for r in rows]
+
+async def save_quant_features_5s_async(features: List[Dict[str, Any]]) -> int:
     """
-    Hybrid fetch (ORM first, then raw SQLite fallback).
+    Persist 5s quant features into quant_features_5s.
+    Expects a list of dicts produced by compute_quant_metrics (or similar).
+    Bulk inserts in batches; uses datetime.utcnow() for ts if not present.
     """
-    session = Session()
+    global _pool
+    if not _pool:
+        await init_db_async()
+    if not features:
+        return 0
+
+    cols = [
+        "symbol", "timeframe", "ts", "price", "oi_usd", "vol_usd",
+        "oi_change_5s_pct", "oi_change_10s_pct", "price_change_5s_pct", "price_change_10s_pct",
+        "atr_5s", "obi", "taker_buy_ratio", "taker_sell_ratio", "vpi",
+        "z_oi", "z_top_ls_acc", "z_obi", "z_funding", "zsc",
+        "confidence", "families", "raw_json"
+    ]
+    placeholders = ", ".join(f"${i+1}" for i in range(len(cols)))
+    sql = f"INSERT INTO quant_features_5s ({', '.join(cols)}) VALUES ({placeholders})"
+    batch = int(os.getenv("DB_INSERT_BATCH", "200"))
+    count = 0
+
+    async with _pool.acquire() as conn:
+        async with conn.transaction():
+            for i in range(0, len(features), batch):
+                chunk = features[i:i+batch]
+                values_list = []
+                for f in chunk:
+                    ts = f.get("ts") or datetime.utcnow()
+                    # ensure JSON serializable for families / raw_json
+                    families = f.get("families") or {}
+                    raw_json = f.get("raw_json") or f
+                    row = [
+                        f.get("symbol"),
+                        f.get("timeframe", "5s"),
+                        ts,
+                        safe_float(f.get("price")),
+                        safe_float(f.get("oi_usd")),
+                        safe_float(f.get("vol_usd")),
+                        safe_float(f.get("oi_change_5s_pct")),
+                        safe_float(f.get("oi_change_10s_pct")),
+                        safe_float(f.get("price_change_5s_pct")),
+                        safe_float(f.get("price_change_10s_pct")),
+                        safe_float(f.get("atr_5s")),
+                        safe_float(f.get("obi")),
+                        safe_float(f.get("taker_buy_ratio")),
+                        safe_float(f.get("taker_sell_ratio")),
+                        safe_float(f.get("vpi")),
+                        safe_float(f.get("z_oi")),
+                        safe_float(f.get("z_top_ls_acc")),
+                        safe_float(f.get("z_obi")),
+                        safe_float(f.get("z_funding")),
+                        safe_float(f.get("zsc")),
+                        safe_float(f.get("confidence")),
+                        json.dumps(families),
+                        json.dumps(raw_json, default=str)
+                    ]
+                    # sanitize non-finite floats
+                    for idx, v in enumerate(row):
+                        if isinstance(v, float) and not math.isfinite(v):
+                            row[idx] = None
+                    values_list.append(row)
+                try:
+                    await conn.executemany(sql, values_list)
+                    count += len(values_list)
+                except Exception as e:
+                    logger.warning(f"[save_quant_features_5s_async] bulk insert failed: {e}")
+                    # fallback to single-row insert attempts
+                    for row in values_list:
+                        try:
+                            await conn.execute(sql, *row)
+                            count += 1
+                        except Exception as e2:
+                            logger.warning(f"[save_quant_features_5s_async] single insert failed: {e2}")
+    logger.info(f"[DB.save_quant_features_5s_async] saved {count} rows to quant_features_5s")
+    return count
+
+
+async def prune_old_data(days: int = 60, tables: Optional[List[str]] = None, dry_run: bool = False) -> Dict[str, int]:
+    """
+    Prune rows older than `days` from the provided tables.
+    Returns a dict mapping table -> rows_deleted (or rows_matched if dry_run=True).
+    By default prunes quant_features_5s only (safe).
+    """
+    global _pool
+    if tables is None:
+        tables = ["quant_features_5s"]
+    if not _pool:
+        await init_db_async()
+
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    results: Dict[str, int] = {}
+    async with _pool.acquire() as conn:
+        async with conn.transaction():
+            for tbl in tables:
+                try:
+                    if dry_run:
+                        # count rows that would be deleted
+                        q = f"SELECT COUNT(1) FROM {tbl} WHERE ts < $1"
+                        rec = await conn.fetchval(q, cutoff)
+                        results[tbl] = int(rec or 0)
+                    else:
+                        q = f"DELETE FROM {tbl} WHERE ts < $1"
+                        res = await conn.execute(q, cutoff)
+                        # asyncpg returns strings like 'DELETE <n>'
+                        if isinstance(res, str) and res.startswith("DELETE"):
+                            try:
+                                n = int(res.split()[-1])
+                            except Exception:
+                                n = 0
+                        else:
+                            n = 0
+                        results[tbl] = n
+                except Exception as e:
+                    logger.warning(f"[prune_old_data] failed for {tbl}: {e}")
+                    results[tbl] = -1
+    logger.info(f"[prune_old_data] prune result: {results} (dry_run={dry_run})")
+    return results
+
+
+async def prune_old_data_loop(interval_hours: int = 6, days: int = 60, tables: Optional[List[str]] = None):
+    """
+    Background loop to prune old high-frequency tables every `interval_hours`.
+    Run this as a background task from app startup.
+    """
+    if tables is None:
+        tables = ["quant_features_5s"]
+    logger.info(f"[prune_old_data_loop] starting: every {interval_hours}h prune older than {days} days for tables={tables}")
     try:
-        q = session.query(Metric).filter(Metric.symbol == symbol)
-        if tf:
-            q = q.filter(Metric.timeframe == tf)
-        q = q.order_by(Metric.timestamp.desc())
-        rows = q.limit(limit).all()
-        if rows:
-            logger.info(f"[DB] ORM returned {len(rows)} rows for {symbol} (tf={tf or 'all'})")
-            return rows
-    except Exception as e:
-        logger.warning(f"[DB] ORM failed: {e}")
-    finally:
-        session.close()
-
-    # fallback raw sqlite
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-    q = "SELECT * FROM metrics WHERE symbol = ?"
-    params = [symbol]
-    if tf:
-        q += " AND timeframe = ?"
-        params.append(tf)
-    q += " ORDER BY timestamp DESC LIMIT ?"
-    params.append(limit)
-    cur.execute(q, tuple(params))
-    rows = cur.fetchall()
-    conn.close()
-    logger.info(f"[DB] RAW fallback returned {len(rows)} rows for {symbol} (tf={tf or 'all'})")
-    return rows
+        while True:
+            try:
+                # call prune (non-dry run)
+                await prune_old_data(days=days, tables=tables, dry_run=False)
+            except Exception as e:
+                logger.exception(f"[prune_old_data_loop] iteration failed: {e}")
+            await asyncio.sleep(interval_hours * 3600)
+    except asyncio.CancelledError:
+        logger.info("[prune_old_data_loop] cancelled — exiting")
+        raise
+    
+def sanitize_json(obj):
+    """Recursively replace NaN and Infinity with None for JSON serialization."""
+    if isinstance(obj, dict):
+        return {k: sanitize_json(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [sanitize_json(v) for v in obj]
+    elif isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+        return obj
+    return obj

@@ -133,3 +133,6 @@ Z-trend plot saved: z_trend.png (embed in progress_tracker.md)
 | P3.6 - UTF8 Logging + QuantSummary Stable | 40.0% | -0.00 | 25 files | 2025-10-21 23:52 |
 | P3.6 - UTF8 Logging + QuantSummary Stable | 40.0% | -0.00 | 25 files | 2025-10-21 23:54 |
 | P3.6 - Weighted OI Fix | 40.0% | -0.00 | 43 files | 2025-10-22 14:20 |
+| P3.6 - UTF8 Logging + QuantSummary Stable | 40.0% | -0.00 | 52 files | 2025-10-22 22:56 |
+| P3.7 - Verified Self-Healing | 50.0% | -0.00 | 52 files | 2025-10-23 11:15 |
+| P3.8 - Confluence Layer | 40.0% | -0.00 | 55 files | 2025-10-23 23:02 |
