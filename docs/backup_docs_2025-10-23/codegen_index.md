@@ -1,0 +1,96 @@
+# Code Export Index - Crypto Futures Dashboard (v1.0)
+
+_Last updated: 2025-10-23 23:02:37_
+
+| File | Type | Lines | Size (KB) | Path |
+|------|------|-------:|---------:|------|
+| backend\src\futuresboard\__init__.py | .py | 33 | 1.1 | backend\src\futuresboard\__init__.py |
+| backend\src\futuresboard\app.py | .py | 598 | 24.3 | backend\src\futuresboard\app.py |
+| backend\src\futuresboard\binance_ws_client_legacy.py | .py | 122 | 4.7 | backend\src\futuresboard\binance_ws_client_legacy.py |
+| backend\src\futuresboard\blueprint.py | .py | 1426 | 50.2 | backend\src\futuresboard\blueprint.py |
+| backend\src\futuresboard\cli.py | .py | 111 | 3.8 | backend\src\futuresboard\cli.py |
+| backend\src\futuresboard\config.py | .py | 273 | 9.0 | backend\src\futuresboard\config.py |
+| backend\src\futuresboard\db.py | .py | 862 | 34.2 | backend\src\futuresboard\db.py |
+| backend\src\futuresboard\metrics.py | .py | 251 | 10.1 | backend\src\futuresboard\metrics.py |
+| backend\src\futuresboard\quant_engine.py | .py | 880 | 37.7 | backend\src\futuresboard\quant_engine.py |
+| backend\src\futuresboard\rest_collector.py | .py | 233 | 10.3 | backend\src\futuresboard\rest_collector.py |
+| backend\src\futuresboard\run_migrations.py | .py | 138 | 4.6 | backend\src\futuresboard\run_migrations.py |
+| backend\src\futuresboard\scraper.py | .py | 103 | 4.0 | backend\src\futuresboard\scraper.py |
+| backend\src\futuresboard\static\js\chartjs-chart-financial.js | .js | 522 | 14.6 | backend\src\futuresboard\static\js\chartjs-chart-financial.js |
+| backend\src\futuresboard\static\js\hammer.min.js | .js | 7 | 20.3 | backend\src\futuresboard\static\js\hammer.min.js |
+| backend\src\futuresboard\static\styles\dashboard.css | .css | 100 | 1.6 | backend\src\futuresboard\static\styles\dashboard.css |
+| backend\src\futuresboard\static\styles\sidebars.css | .css | 89 | 1.9 | backend\src\futuresboard\static\styles\sidebars.css |
+| backend\src\futuresboard\templates\base.html | .html | 141 | 10.5 | backend\src\futuresboard\templates\base.html |
+| backend\src\futuresboard\templates\coin.html | .html | 707 | 30.7 | backend\src\futuresboard\templates\coin.html |
+| backend\src\futuresboard\templates\error.html | .html | 10 | 0.4 | backend\src\futuresboard\templates\error.html |
+| backend\src\futuresboard\templates\history.html | .html | 87 | 3.6 | backend\src\futuresboard\templates\history.html |
+| backend\src\futuresboard\templates\home.html | .html | 300 | 9.4 | backend\src\futuresboard\templates\home.html |
+| backend\src\futuresboard\templates\positions.html | .html | 84 | 4.5 | backend\src\futuresboard\templates\positions.html |
+| backend\src\futuresboard\templates\projection.html | .html | 135 | 5.0 | backend\src\futuresboard\templates\projection.html |
+| backend\src\futuresboard\utils.py | .py | 62 | 2.8 | backend\src\futuresboard\utils.py |
+| backend\src\futuresboard\version.py | .py | 3 | 0.1 | backend\src\futuresboard\version.py |
+| backend\src\futuresboard\ws_manager.py | .py | 227 | 8.7 | backend\src\futuresboard\ws_manager.py |
+| backend\src\futuresboard\wsgi.py | .py | 6 | 0.1 | backend\src\futuresboard\wsgi.py |
+| backend\tests\test_metrics.py | .py | 11 | 0.4 | backend\tests\test_metrics.py |
+| docs\README.md | .md | 71 | 2.4 | docs\README.md |
+| docs\api_guide.md | .md | 20 | 1.2 | docs\api_guide.md |
+| docs\architecture.md | .md | 118 | 7.7 | docs\architecture.md |
+| docs\autogen\codegen_v1.py | .py | 173 | 5.9 | docs\autogen\codegen_v1.py |
+| docs\autogen\gen_blueprint_v2.py | .py | 82 | 2.8 | docs\autogen\gen_blueprint_v2.py |
+| docs\autogen\gen_tracker_v2.py | .py | 114 | 4.2 | docs\autogen\gen_tracker_v2.py |
+| docs\backup_docs_2025-10-21\README.md | .md | 71 | 2.4 | docs\backup_docs_2025-10-21\README.md |
+| docs\backup_docs_2025-10-21\api_guide.md | .md | 20 | 1.2 | docs\backup_docs_2025-10-21\api_guide.md |
+| docs\backup_docs_2025-10-21\architecture.md | .md | 116 | 25.9 | docs\backup_docs_2025-10-21\architecture.md |
+| docs\backup_docs_2025-10-21\autogen\codegen_v1.py | .py | 173 | 5.9 | docs\backup_docs_2025-10-21\autogen\codegen_v1.py |
+| docs\backup_docs_2025-10-21\autogen\gen_blueprint_v2.py | .py | 82 | 2.8 | docs\backup_docs_2025-10-21\autogen\gen_blueprint_v2.py |
+| docs\backup_docs_2025-10-21\autogen\gen_tracker_v2.py | .py | 114 | 4.2 | docs\backup_docs_2025-10-21\autogen\gen_tracker_v2.py |
+| docs\backup_docs_2025-10-21\codegen.py | .py | 92 | 3.2 | docs\backup_docs_2025-10-21\codegen.py |
+| docs\backup_docs_2025-10-21\codegen_index.md | .md | 92 | 8.4 | docs\backup_docs_2025-10-21\codegen_index.md |
+| docs\backup_docs_2025-10-21\continuity_log.json | .json | 269 | 10.7 | docs\backup_docs_2025-10-21\continuity_log.json |
+| docs\backup_docs_2025-10-21\continuity_state.json | .json | 22 | 0.9 | docs\backup_docs_2025-10-21\continuity_state.json |
+| docs\backup_docs_2025-10-21\continuity_state.md | .md | 36 | 1.7 | docs\backup_docs_2025-10-21\continuity_state.md |
+| docs\backup_docs_2025-10-21\docs\codegen_index.md | .md | 10 | 0.4 | docs\backup_docs_2025-10-21\docs\codegen_index.md |
+| docs\backup_docs_2025-10-21\docs\project_data.json | .json | 35 | 3.3 | docs\backup_docs_2025-10-21\docs\project_data.json |
+| docs\backup_docs_2025-10-21\docs_rehaul_plan.md | .md | 140 | 5.9 | docs\backup_docs_2025-10-21\docs_rehaul_plan.md |
+| docs\backup_docs_2025-10-21\index.md | .md | 39 | 1.6 | docs\backup_docs_2025-10-21\index.md |
+| docs\backup_docs_2025-10-21\project_context_v3.json | .json | 14 | 0.5 | docs\backup_docs_2025-10-21\project_context_v3.json |
+| docs\backup_docs_2025-10-21\project_data.json | .json | 691 | 598.3 | docs\backup_docs_2025-10-21\project_data.json |
+| docs\backup_docs_2025-10-21\quant_blueprint.md | .md | 93 | 7.1 | docs\backup_docs_2025-10-21\quant_blueprint.md |
+| docs\backup_docs_2025-10-21\quant_blueprint_synced.md | .md | 9 | 0.3 | docs\backup_docs_2025-10-21\quant_blueprint_synced.md |
+| docs\backup_docs_2025-10-21\quant_progress_tracker.md | .md | 134 | 8.6 | docs\backup_docs_2025-10-21\quant_progress_tracker.md |
+| docs\backup_docs_2025-10-21\roadmap.md | .md | 43 | 6.0 | docs\backup_docs_2025-10-21\roadmap.md |
+| docs\backup_docs_2025-10-21\status_report.md | .md | 103 | 2.6 | docs\backup_docs_2025-10-21\status_report.md |
+| docs\backup_docs_2025-10-21\status_report_template.md | .md | 100 | 2.5 | docs\backup_docs_2025-10-21\status_report_template.md |
+| docs\backup_docs_2025-10-21\testing_harness.md | .md | 21 | 1.3 | docs\backup_docs_2025-10-21\testing_harness.md |
+| docs\backup_docs_2025-10-21\z_history.json | .json | 1 | 0.1 | docs\backup_docs_2025-10-21\z_history.json |
+| docs\codegen_index.md | .md | 97 | 8.9 | docs\codegen_index.md |
+| docs\continuity_log.json | .json | 468 | 19.0 | docs\continuity_log.json |
+| docs\continuity_state.json | .json | 25 | 1.0 | docs\continuity_state.json |
+| docs\continuity_state.md | .md | 39 | 1.8 | docs\continuity_state.md |
+| docs\conversation_prompt.md | .md | 152 | 3.1 | docs\conversation_prompt.md |
+| docs\crypto_continuity_gptv4.md | .md | 205 | 6.4 | docs\crypto_continuity_gptv4.md |
+| docs\docs_rehaul_plan.md | .md | 140 | 5.9 | docs\docs_rehaul_plan.md |
+| docs\index.md | .md | 39 | 1.6 | docs\index.md |
+| docs\project_context_v3.json | .json | 14 | 0.4 | docs\project_context_v3.json |
+| docs\quant_blueprint.md | .md | 93 | 7.1 | docs\quant_blueprint.md |
+| docs\quant_blueprint_synced.md | .md | 9 | 0.3 | docs\quant_blueprint_synced.md |
+| docs\quant_progress_tracker.md | .md | 137 | 8.8 | docs\quant_progress_tracker.md |
+| docs\roadmap.md | .md | 43 | 6.0 | docs\roadmap.md |
+| docs\status_report.md | .md | 103 | 2.6 | docs\status_report.md |
+| docs\status_report_template.md | .md | 100 | 2.5 | docs\status_report_template.md |
+| docs\testing_harness.md | .md | 21 | 1.3 | docs\testing_harness.md |
+| docs\z_history.json | .json | 1 | 0.2 | docs\z_history.json |
+| frontend\src\App.css | .css | 42 | 0.6 | frontend\src\App.css |
+| frontend\src\App.jsx | .jsx | 43 | 1.5 | frontend\src\App.jsx |
+| frontend\src\components\Header.jsx | .jsx | 51 | 2.0 | frontend\src\components\Header.jsx |
+| frontend\src\components\QuantSummaryPanel.jsx | .jsx | 91 | 2.8 | frontend\src\components\QuantSummaryPanel.jsx |
+| frontend\src\components\Sidebar.jsx | .jsx | 30 | 1.0 | frontend\src\components\Sidebar.jsx |
+| frontend\src\context\QuantContext.jsx | .jsx | 152 | 5.0 | frontend\src\context\QuantContext.jsx |
+| frontend\src\index.css | .css | 13 | 0.2 | frontend\src\index.css |
+| frontend\src\main.jsx | .jsx | 10 | 0.2 | frontend\src\main.jsx |
+| frontend\src\pages\Alerts.jsx | .jsx | 26 | 0.9 | frontend\src\pages\Alerts.jsx |
+| frontend\src\pages\Diagnostics.jsx | .jsx | 28 | 0.9 | frontend\src\pages\Diagnostics.jsx |
+| frontend\src\pages\Market.jsx | .jsx | 42 | 1.6 | frontend\src\pages\Market.jsx |
+| frontend\src\pages\Monitor.jsx | .jsx | 51 | 1.9 | frontend\src\pages\Monitor.jsx |
+
+_Total Files: 88 | Phase: P3.8 - Confluence Layer | Uptime: 40_

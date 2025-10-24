@@ -464,5 +464,125 @@
                        "version.py":  "A28548B",
                        "ws_manager.py":  "6C7B975"
                    }
+    },
+    {
+        "timestamp":  "2025-10-24 12:01:45",
+        "phase":  "P3.6 - UTF8 Logging + QuantSummary Stable",
+        "backend":  "unhealthy",
+        "hashes":  {
+                       "metrics.py":  "34D5E49",
+                       "rest_collector.py":  "FFA3411",
+                       "utils.py":  "B95F2D8",
+                       "quant_engine.py":  "D2DDEFB",
+                       "__init__.py":  "7F2588D",
+                       "run_migrations.py":  "75212E5",
+                       "blueprint.py":  "2E30F01",
+                       "binance_ws_client_legacy.py":  "04FCF76",
+                       "wsgi.py":  "AFEA7F6",
+                       "App.jsx":  "FE87D8B",
+                       "app.py":  "4CD54BA",
+                       "db.py":  "D353187",
+                       "cli.py":  "4ABCA81",
+                       "scraper.py":  "9F8DDEF",
+                       "config.py":  "A5E663F",
+                       "version.py":  "A28548B",
+                       "ws_manager.py":  "6C7B975"
+                   }
+    },
+    {
+        "timestamp":  "2025-10-24 17:04:56",
+        "phase":  "P4.4 - Backend Continuity \u0026 Config Integration Audit",
+        "backend":  "unhealthy",
+        "hashes":  {
+                       "metrics.py":  "34D5E49",
+                       "rest_collector.py":  "9C424DA",
+                       "utils.py":  "B95F2D8",
+                       "quant_engine.py":  "D2DDEFB",
+                       "__init__.py":  "7F2588D",
+                       "run_migrations.py":  "75212E5",
+                       "blueprint.py":  "2E30F01",
+                       "binance_ws_client_legacy.py":  "04FCF76",
+                       "wsgi.py":  "AFEA7F6",
+                       "App.jsx":  "FE87D8B",
+                       "app.py":  "410F2F4",
+                       "db.py":  "F29A1DD",
+                       "cli.py":  "4ABCA81",
+                       "scraper.py":  "9F8DDEF",
+                       "config.py":  "308EF46",
+                       "version.py":  "A28548B",
+                       "ws_manager.py":  "8D91F9B"
+                   }
+    },
+    {
+        "timestamp":  "2025-10-24 17:29:40",
+        "phase":  "P4.4 - Backend Continuity \u0026 Config Integration Audit",
+        "backend":  "unhealthy",
+        "hashes":  {
+                       "metrics.py":  "34D5E49",
+                       "rest_collector.py":  "9C424DA",
+                       "utils.py":  "AF28EEA",
+                       "quant_engine.py":  "7851A4F",
+                       "__init__.py":  "7F2588D",
+                       "run_migrations.py":  "75212E5",
+                       "blueprint.py":  "2E30F01",
+                       "binance_ws_client_legacy.py":  "04FCF76",
+                       "wsgi.py":  "AFEA7F6",
+                       "App.jsx":  "FE87D8B",
+                       "app.py":  "410F2F4",
+                       "db.py":  "CBB4F6C",
+                       "cli.py":  "4ABCA81",
+                       "scraper.py":  "9F8DDEF",
+                       "config.py":  "308EF46",
+                       "version.py":  "A28548B",
+                       "ws_manager.py":  "8D91F9B"
+                   }
+    },
+    {
+        "timestamp":  "2025-10-24 19:13:08",
+        "phase":  "P4.4 - Backend Lifecycle Integration Verified",
+        "backend":  "unhealthy",
+        "hashes":  {
+                       "metrics.py":  "34D5E49",
+                       "rest_collector.py":  "9C424DA",
+                       "utils.py":  "AF28EEA",
+                       "quant_engine.py":  "5B47CC4",
+                       "__init__.py":  "7F2588D",
+                       "run_migrations.py":  "75212E5",
+                       "blueprint.py":  "2E30F01",
+                       "binance_ws_client_legacy.py":  "04FCF76",
+                       "wsgi.py":  "AFEA7F6",
+                       "App.jsx":  "FE87D8B",
+                       "app.py":  "00118BC",
+                       "db.py":  "1FEAA76",
+                       "cli.py":  "4ABCA81",
+                       "scraper.py":  "9F8DDEF",
+                       "config.py":  "2D8CD4A",
+                       "version.py":  "A28548B",
+                       "ws_manager.py":  "0DBB4BF"
+                   }
+    },
+    {
+        "timestamp":  "2025-10-24 19:13:16",
+        "phase":  "P4.4 - WS Lifecycle Integrated",
+        "backend":  "unhealthy",
+        "hashes":  {
+                       "metrics.py":  "34D5E49",
+                       "rest_collector.py":  "9C424DA",
+                       "utils.py":  "AF28EEA",
+                       "quant_engine.py":  "5B47CC4",
+                       "__init__.py":  "7F2588D",
+                       "run_migrations.py":  "75212E5",
+                       "blueprint.py":  "2E30F01",
+                       "binance_ws_client_legacy.py":  "04FCF76",
+                       "wsgi.py":  "AFEA7F6",
+                       "App.jsx":  "FE87D8B",
+                       "app.py":  "00118BC",
+                       "db.py":  "1FEAA76",
+                       "cli.py":  "4ABCA81",
+                       "scraper.py":  "9F8DDEF",
+                       "config.py":  "2D8CD4A",
+                       "version.py":  "A28548B",
+                       "ws_manager.py":  "0DBB4BF"
+                   }
     }
 ]

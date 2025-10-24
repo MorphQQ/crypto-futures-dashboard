@@ -15,14 +15,21 @@ import logging
 import random
 import aiohttp
 import pathlib
+import contextlib
 from typing import Callable, Iterable, List, Optional
+from .config import get_settings
+cfg = get_settings()
 
+MAX_STREAMS_PER_CONN = cfg.MAX_STREAMS_PER_CONN
 logger = logging.getLogger("futuresboard.ws_manager")
 logger.setLevel(logging.INFO)
 
 BINANCE_FUTURES_COMBINED = "wss://fstream.binance.com/stream?streams="
 DEFAULT_STREAMS = ["ticker", "markPrice", "openInterest", "depth@100ms", "aggTrade"]
-MAX_STREAMS_PER_CONN = int(__import__("os").environ.get("MAX_STREAMS_PER_CONN", "50"))
+from .config import get_settings
+cfg = get_settings()
+
+MAX_STREAMS_PER_CONN = cfg.MAX_STREAMS_PER_CONN
 WS_READ_TIMEOUT = 60
 INITIAL_BACKOFF = 1.0
 MAX_BACKOFF = 60.0
@@ -88,12 +95,14 @@ def _parse_raw_message(raw: str) -> Optional[dict]:
     return None
 
 # ---------- single connection worker ----------
-async def _run_single_connection(session: aiohttp.ClientSession, stream_tokens: List[str],
-                                 cb: Callable[[dict], "asyncio.Future"], stop_event: asyncio.Event):
+async def _run_single_connection(session: aiohttp.ClientSession,
+                                 stream_tokens: list[str],
+                                 cb: Callable[[dict], "asyncio.Future"],
+                                 stop_event: asyncio.Event):
     from aiohttp import WSMsgType
-
     if not stream_tokens:
         return
+
     stream_path = "/".join(stream_tokens)
     url = BINANCE_FUTURES_COMBINED + stream_path
     backoff = INITIAL_BACKOFF
@@ -110,9 +119,16 @@ async def _run_single_connection(session: aiohttp.ClientSession, stream_tokens: 
                     if msg.type == WSMsgType.TEXT:
                         parsed = _parse_raw_message(msg.data)
                         if parsed:
-                            # schedule callback safely
                             try:
-                                asyncio.create_task(cb(parsed))
+                                # schedule callback with cancellation guard
+                                task = asyncio.create_task(cb(parsed))
+                                task.set_name(f"ws_cb_{parsed.get('symbol','')}")
+                                task.add_done_callback(
+                                    lambda t: t.exception()  # suppress unhandled warnings
+                                )
+                            except asyncio.CancelledError:
+                                logger.info("[ws] callback task cancelled")
+                                raise
                             except Exception as e:
                                 logger.exception("[ws] callback scheduling error: %s", e)
                     elif msg.type == WSMsgType.CLOSED:
@@ -125,12 +141,11 @@ async def _run_single_connection(session: aiohttp.ClientSession, stream_tokens: 
             logger.info("[ws] connection task cancelled")
             break
         except Exception as e:
-            logger.warning(f"[ws] connection error: {e}; reconnecting in {backoff}s")
+            logger.warning(f"[ws] connection error: {e}; reconnecting in {backoff:.1f}s")
             await asyncio.sleep(backoff + (0.5 * random.random()))
             backoff = min(backoff * 2, MAX_BACKOFF)
             continue
-
-    logger.info("[ws] _run_single_connection exiting")
+    logger.info("[ws] _run_single_connection exiting safely")
 
 # ---------- high-level lifecycle ----------
 async def start_all(symbols: Optional[List[str]] = None,

@@ -1,8 +1,8 @@
 {
-    "timestamp":  "2025-10-23 23:02:37",
-    "phase":  "P3.8 - Confluence Layer",
+    "timestamp":  "2025-10-24 19:13:16",
+    "phase":  "P4.4 - WS Lifecycle Integrated",
     "backend_health":  "unhealthy",
-    "uptime_pct":  40,
+    "uptime_pct":  20,
     "backend_name":  "futuresboard",
     "db_path":  "backend/src/futuresboard/futures.db",
     "system":  {

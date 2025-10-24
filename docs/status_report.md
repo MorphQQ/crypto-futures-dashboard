@@ -1,7 +1,7 @@
 # Project Status Report Template - Crypto Futures Dashboard
 
-**Generated:** 2025-10-23 23:02:37  
-**Phase:** P3.8 - Confluence Layer  
+**Generated:** 2025-10-24 19:13:16  
+**Phase:** P4.4 - WS Lifecycle Integrated  
 **Backend:** futuresboard  
 **Maintainer:** Lian Isaac  
 
@@ -11,9 +11,9 @@
 
 | Field | Value |
 |-------|-------|
-| **Phase** | P3.8 - Confluence Layer |
+| **Phase** | P4.4 - WS Lifecycle Integrated |
 | **Backend Health** | unhealthy |
-| **Uptime (7-Sample)** | 40.0 % |
+| **Uptime (7-Sample)** | 20.0 % |
 | **System** | Microsoft Windows 10 Pro |
 | **Database Path** | backend/src/futuresboard/futures.db |
 
@@ -21,17 +21,17 @@
 
 ## Backend Summary
 
-**Last Snapshot:** 2025-10-23 23:02:37  
+**Last Snapshot:** 2025-10-24 19:13:16  
 **Health Check:** unhealthy  
 
 ### Key Components
 | File | Hash | Last Updated |
 |------|------|---------------|
-| metrics.py | {{hash_metrics}} | 2025-10-23 23:02:37 |
-| db.py | {{hash_db}} | 2025-10-23 23:02:37 |
-| app.py | {{hash_app}} | 2025-10-23 23:02:37 |
-| scraper.py | {{hash_scraper}} | 2025-10-23 23:02:37 |
-| App.jsx | {{hash_appjsx}} | 2025-10-23 23:02:37 |
+| metrics.py | {{hash_metrics}} | 2025-10-24 19:13:16 |
+| db.py | {{hash_db}} | 2025-10-24 19:13:16 |
+| app.py | {{hash_app}} | 2025-10-24 19:13:16 |
+| scraper.py | {{hash_scraper}} | 2025-10-24 19:13:16 |
+| App.jsx | {{hash_appjsx}} | 2025-10-24 19:13:16 |
 
 ---
 
@@ -73,7 +73,7 @@
 
 - **Backend Status:** unhealthy  
 - **Probable Cause (if unhealthy):** Check /health route and backend logs  
-- **Last Known Healthy Snapshot:** 2025-10-23 23:02:46  
+- **Last Known Healthy Snapshot:** 2025-10-24 19:13:24  
 
 ---
 
@@ -100,4 +100,4 @@
 *To be populated automatically after each successful `Sync-Continuity` run.*
 
 ---
-Backend Healthy - 2025-10-23 23:02:46
+Backend Healthy - 2025-10-24 19:13:24

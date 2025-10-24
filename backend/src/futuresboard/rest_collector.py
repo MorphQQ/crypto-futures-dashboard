@@ -1,7 +1,6 @@
 # backend/src/futuresboard/rest_collector.py
 from __future__ import annotations
 import asyncio
-import os
 import aiohttp
 import logging
 from datetime import datetime, timezone
@@ -9,16 +8,18 @@ from typing import Dict, Any
 from dotenv import load_dotenv
 from . import db
 import json
+from .config import get_settings
+cfg = get_settings()
+
+API_BASE = cfg.API_BASE_URL
+SYMBOLS = cfg.SYMBOLS
+POLL_INTERVAL = cfg.AUTO_SCRAPE_INTERVAL
+CONCURRENCY = cfg.REST_CONCURRENCY
 
 load_dotenv()
 
 logger = logging.getLogger("rest_collector")
 
-API_BASE = os.getenv("API_BASE_URL", "https://fapi.binance.com")
-SYMBOLS_ENV = os.getenv("SYMBOLS", "BTCUSDT,ETHUSDT,SOLUSDT")
-SYMBOLS = [s.strip().upper() for s in SYMBOLS_ENV.split(",") if s.strip()]
-POLL_INTERVAL = int(os.getenv("REST_POLL_INTERVAL", "10"))
-CONCURRENCY = int(os.getenv("REST_CONCURRENCY", "10"))
 
 _sem = asyncio.Semaphore(CONCURRENCY)
 
